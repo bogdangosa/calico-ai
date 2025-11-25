@@ -13,7 +13,7 @@ from visualize.plots import plot_score_distribution, plot_average_convergence
 
 # --- CONFIGURATION CONSTANTS ---
 LOG_RESULTS_TO_CSV = True  # Set to True to enable logging
-LOG_FILENAME = "../datasets/agent_lookahead_results.csv"
+LOG_FILENAME = "../datasets/agent_lookahead_results_optimised_big.csv"
 
 
 # --- LOGGING FUNCTION ---
@@ -235,4 +235,4 @@ def test_random_configs(
 if __name__ == "__main__":
     # Example usage: Set LOG_RESULTS_TO_CSV = True above to log results
     # WARNING: This will overwrite/append to agent_lookahead_results.csv
-    print(test_one_step_lookahead(number_of_tries=100, print_results=True))
+    print(test_one_step_lookahead(number_of_tries=500, print_results=True))
