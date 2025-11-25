@@ -1,22 +1,70 @@
 import copy
 import random
-
+import os
+import csv
 import numpy as np
 
+# NOTE: External imports are preserved, assuming they are accessible
 from enviroment.calico_env import CalicoEnv
 from enviroment.calico_potential_scoring import evaluate_move, generate_random_config
 from enviroment.calico_scoring import get_total_score_on_board, get_total_score_on_board_detailed
 from utils.constants import *
 from visualize.plots import plot_score_distribution, plot_average_convergence
 
+# --- CONFIGURATION CONSTANTS ---
+LOG_RESULTS_TO_CSV = True  # Set to True to enable logging
+LOG_FILENAME = "../datasets/agent_lookahead_results.csv"
+
+
+# --- LOGGING FUNCTION ---
+
+def log_game_result(score_details: dict):
+    """
+    Appends the detailed score of a single game run to a CSV file.
+    score_details is expected to be a dictionary with keys:
+    'score', 'cats_score', 'color_score', 'objectives_score', 'timestamp'
+    """
+    if not LOG_RESULTS_TO_CSV:
+        return
+
+    # Check if the file exists to determine if headers are needed
+    file_exists = os.path.exists(LOG_FILENAME)
+
+    # Define the order of the fields
+    fieldnames = ['timestamp', 'score', 'objectives_score', 'cats_score', 'color_score']
+
+    try:
+        with open(LOG_FILENAME, 'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            if not file_exists or os.path.getsize(LOG_FILENAME) == 0:
+                writer.writeheader()
+
+            # Prepare the row data
+            row_data = {
+                'timestamp': score_details['timestamp'],
+                'score': score_details['score'],
+                'objectives_score': score_details['objectives_score'],
+                'cats_score': score_details['cats_score'],
+                'color_score': score_details['color_score']
+            }
+            writer.writerow(row_data)
+
+    except IOError as e:
+        print(f"Error logging to CSV file {LOG_FILENAME}: {e}")
+
+
+# --- AGENT FUNCTIONS (Copied from original request) ---
 
 def get_random_tile_to_buy():
-    return random.randint(0,NR_OF_TILES_IN_SHOP-1)
+    return random.randint(0, NR_OF_TILES_IN_SHOP - 1)
+
 
 def buy_random_tile(env):
     bought_tile_index = get_random_tile_to_buy()
     bought_tile_id = env.buy_tile(bought_tile_index)
     return bought_tile_id
+
 
 def one_step_lookahead_move(env, remaining_recursions=0):
     max_score = -1
@@ -44,7 +92,8 @@ def one_step_lookahead_move(env, remaining_recursions=0):
         env.perform_action(best_action)
     return best_action
 
-def one_step_lookahead_move_old(env,remaining_recursions=0):
+
+def one_step_lookahead_move_old(env, remaining_recursions=0):
     if env.mode == "buying":
         tile_to_buy = -1
         max_score = -1
@@ -60,20 +109,20 @@ def one_step_lookahead_move_old(env,remaining_recursions=0):
         return tile_to_buy
     elif env.mode == "placing":
         max_score = -1
-        selected_move = (0,0,0)
+        selected_move = (0, 0, 0)
         for cat_tile_index in range(PLAYER_HAND_SIZE):
-            for row in range(1,BOARD_SIZE-1):
-                for col in range(1,BOARD_SIZE-1):
+            for row in range(1, BOARD_SIZE - 1):
+                for col in range(1, BOARD_SIZE - 1):
                     tile_id = env.board_matrix[row][col]
                     if tile_id != NO_TILE_VALUE:
                         continue
                     temp_env = copy.deepcopy(env)
-                    temp_env.place_tile(row,col,cat_tile_index)
-                    score = evaluate_move(temp_env.board_matrix,temp_env.cat_tiles)
+                    temp_env.place_tile(row, col, cat_tile_index)
+                    score = evaluate_move(temp_env.board_matrix, temp_env.cat_tiles)
                     if score > max_score:
                         max_score = score
-                        selected_move = row,col,cat_tile_index
-        env.place_tile(selected_move[0],selected_move[1],selected_move[2])
+                        selected_move = row, col, cat_tile_index
+        env.place_tile(selected_move[0], selected_move[1], selected_move[2])
         return selected_move
     return None
 
@@ -83,14 +132,15 @@ def run_one_step_lookahead_game(print_board=False):
     env.start_game()
 
     while not env.is_game_over():
-        one_step_lookahead_move(env,1)
-        #print("score "+str(get_total_score_on_board(env.board_matrix, env.cat_tiles)))
+        one_step_lookahead_move(env, 1)
+        # print("score "+str(get_total_score_on_board(env.board_matrix, env.cat_tiles)))
     if print_board:
         print(env)
         print("score " + str(get_total_score_on_board(env.board_matrix, env.cat_tiles)))
     return env
 
-def test_one_step_lookahead(number_of_tries=100,config=EVALUATION_CONFIG,print_results=False):
+
+def test_one_step_lookahead(number_of_tries=100, config=EVALUATION_CONFIG, print_results=False):
     import time
 
     total_score = 0
@@ -103,12 +153,27 @@ def test_one_step_lookahead(number_of_tries=100,config=EVALUATION_CONFIG,print_r
     all_scores = []
     average_scores = []
 
+    # If logging is enabled, check if we need to write the header
+    if LOG_RESULTS_TO_CSV and (not os.path.exists(LOG_FILENAME) or os.path.getsize(LOG_FILENAME) == 0):
+        print(f"--- Creating new log file: {LOG_FILENAME} ---")
+
     for i in range(number_of_tries):
         start = time.time()
         env = run_one_step_lookahead_game(i % 10 == 0)
 
         score, cats_score, color_score, objectives_score = get_total_score_on_board_detailed(env.board_matrix,
                                                                                              env.cat_tiles)
+        game_time = time.time() - start
+
+        # --- LOGGING STEP ---
+        log_game_result({
+            'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+            'score': score,
+            'objectives_score': objectives_score,
+            'cats_score': cats_score,
+            'color_score': color_score
+        })
+        # ---------------------
 
         # update best
         if score > max_score:
@@ -120,11 +185,11 @@ def test_one_step_lookahead(number_of_tries=100,config=EVALUATION_CONFIG,print_r
         total_cats += cats_score
         total_color += color_score
         total_objectives += objectives_score
-        total_time += time.time() - start
+        total_time += game_time
 
         if print_results:
             all_scores.append(score)
-            average_scores.append(total_score /(i+1))
+            average_scores.append(total_score / (i + 1))
 
     # print results
     if print_results:
@@ -142,10 +207,10 @@ def test_one_step_lookahead(number_of_tries=100,config=EVALUATION_CONFIG,print_r
 
 
 def test_random_configs(
-    num_configs=10,
-    number_of_tries=100,
-    min_val=0.0,
-    max_val=5.0
+        num_configs=10,
+        number_of_tries=100,
+        min_val=0.0,
+        max_val=5.0
 ):
     results = []
 
@@ -154,7 +219,7 @@ def test_random_configs(
         avg_score = test_one_step_lookahead(number_of_tries, config)
         results.append((avg_score, config))
 
-        print(f"[{i+1}/{num_configs}] avg_score={avg_score:.2f}  config={config}")
+        print(f"[{i + 1}/{num_configs}] avg_score={avg_score:.2f}  config={config}")
 
     # Sort best → worst
     results.sort(key=lambda x: x[0], reverse=True)
@@ -165,6 +230,9 @@ def test_random_configs(
 
     return results
 
-#test_random_configs()
+
+# test_random_configs()
 if __name__ == "__main__":
-    print(test_one_step_lookahead(number_of_tries=100,print_results=True))
+    # Example usage: Set LOG_RESULTS_TO_CSV = True above to log results
+    # WARNING: This will overwrite/append to agent_lookahead_results.csv
+    print(test_one_step_lookahead(number_of_tries=100, print_results=True))
