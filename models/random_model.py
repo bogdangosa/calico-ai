@@ -33,7 +33,7 @@ def get_random_tile_to_buy():
     return random.randint(0,NR_OF_TILES_IN_SHOP-1)
 
 
-NR_OF_TRIES = 100
+NR_OF_TRIES = 1000
 average = 0
 for i in range(NR_OF_TRIES):
     env = CalicoEnv()
@@ -45,4 +45,5 @@ for i in range(NR_OF_TRIES):
         print(f"Played {i} games")
         print(env)
 average /= NR_OF_TRIES
+print("average is:")
 print(average)

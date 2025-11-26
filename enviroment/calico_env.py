@@ -194,7 +194,7 @@ class CalicoEnv:
     def fill_board_randomly(self):
         for i in range(BOARD_SIZE-2):
             for j in range(BOARD_SIZE-2):
-                if [i,j] in OBJECTIVE_POSITIONS_ON_BOARD:
+                if [i+1,j+1] in OBJECTIVE_POSITIONS_ON_BOARD:
                     continue
                 self.board_matrix[i+1][j+1] = self.generate_random_tile()
 
