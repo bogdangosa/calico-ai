@@ -43,11 +43,11 @@ class CalicoEnv:
         if self.mode == "placing":
             # Place tile actions
             for idx, tile_id in enumerate(self.player_tiles):
-                if tile_id == self.config.board.self.config.board.no_tile_value:
+                if tile_id == self.config.board.no_tile_value:
                     continue
                 for r in range(self.size):
                     for c in range(self.size):
-                        if self.board_matrix[r][c] == self.config.board.self.config.board.no_tile_value:
+                        if self.board_matrix[r][c] == self.config.board.no_tile_value:
                             legal_actions.append(('place', idx, r, c))
 
         if self.mode == "buying":
