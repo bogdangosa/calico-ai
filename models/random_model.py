@@ -1,7 +1,9 @@
 import random
+import time
 
 from enviroment.calico_env import CalicoEnv
 from enviroment.calico_scoring import get_total_score_on_board
+from enviroment.mini_calico_env import MiniCalicoEnv
 from utils.constants import *
 
 PLACING_MODE = 1
@@ -35,15 +37,27 @@ def get_random_tile_to_buy():
 
 NR_OF_TRIES = 1000
 average = 0
+start_time = time.perf_counter()
+
 for i in range(NR_OF_TRIES):
-    env = CalicoEnv()
+    env = MiniCalicoEnv()
     env.start_game()
     env.fill_board_randomly()
     score = get_total_score_on_board(env.board_matrix, env.cat_tiles)
     average += score
-    if i % 10 == 0:
-        print(f"Played {i} games")
-        print(env)
+    #if i % 10 == 0:
+        #print(f"Played {i} games")
+        #print(env)
+
+end_time = time.perf_counter()
+
+# 3. Calculate duration
+duration = end_time - start_time
+
 average /= NR_OF_TRIES
-print("average is:")
-print(average)
+
+print("--------------------------------------------------")
+print(f"Average Score: {average}")
+print(f"Total Time:    {duration:.4f} seconds")
+print(f"Time per Game: {(duration / NR_OF_TRIES) * 1000:.4f} milliseconds")
+print("--------------------------------------------------")

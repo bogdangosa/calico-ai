@@ -2,26 +2,52 @@ import copy
 import random
 import numpy as np
 
-# --- MINI CALICO CONSTANTS ---
-# Reduced complexity for debugging and initial learning
-BOARD_SIZE = 5  # 5x5 Matrix (1-tile border, 3x3 playable area)
-TILE_COLORS = 3  # Reduced from 6
-TILE_PATTERNS = 3  # Reduced from 6
-TOTAL_TILE_TYPES = TILE_COLORS * TILE_PATTERNS  # 9 unique tiles
-NR_OF_IDENTICAL_TILES = 5  # 9 * 5 = 45 tiles total
-NR_OF_TILES_IN_SHOP = 2
-PLAYER_HAND_SIZE = 2
-NO_TILE_VALUE = -1  # Using -1 for empty is safer for CNNs than 37
-OBJECTIVE_VALUE_BASE = -100  # Objectives are negative
+# --- MOCK CONSTANTS (In case you run this standalone) ---
+# If you have your own utils, these will just be overwritten or used as fallbacks.
+try:
+    from enviroment.calico_scoring import get_total_score_on_board
+    from utils.mini_calico_constants import *
+except ImportError:
+    # Defaults for demonstration if files are missing
+    print("Warning: Importing local files failed. Using default constants.")
+    BOARD_SIZE = 5
+    PLAYER_HAND_SIZE = 2
+    NR_OF_TILES_IN_SHOP = 3
+    NO_TILE_VALUE = -1
+    OBJECTIVE_VALUE_BASE = -10
+    TILE_COLORS = 3
+    TILE_PATTERNS = 3
+    NR_OF_IDENTICAL_TILES = 3
+    OBJECTIVE_POSITIONS_ON_BOARD = [(2, 2)]
 
-# Simple Objective in the center (Index 2,2)
-OBJECTIVE_POSITIONS_ON_BOARD = [[2, 2]]
 
-# Simplified Borders for 5x5 (Top, Right, Bottom, Left)
-# Just random valid tile IDs for the border to allow matching
+    def get_total_score_on_board(matrix, cats):
+        return 0
+
 BOARD_BORDERS = {
-    "mini": [0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6]  # Simplified loop
+    "mini": [0, 4, 6, 1, 5, 7, 2, 3, 8, 0, 7, 2, 3, 6, 5, 7]
 }
+
+
+# --- VISUALIZATION CONSTANTS ---
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    GRAY = "\033[90m"
+
+    # Foreground colors for tiles
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+
+    PALETTE = [RED, BLUE, YELLOW, GREEN, MAGENTA, CYAN]
+
+
+# Symbols to represent the patterns (0, 1, 2...)
+PATTERNS = ["●", "✚", "▲", "■", "♦", "*"]
 
 
 class MiniCalicoEnv:
@@ -43,10 +69,7 @@ class MiniCalicoEnv:
         self.tile_pool = self.initiate_tile_pool()
         self.player_tiles = [self.generate_random_tile() for _ in range(PLAYER_HAND_SIZE)]
         self.shop_tiles = [self.generate_random_tile() for _ in range(NR_OF_TILES_IN_SHOP)]
-
-        # Cats are simplified: just IDs for now
-        self.cat_tiles = np.array([1, 2])
-
+        self.cat_tiles = np.array([1, 2, 3])
         self.board_matrix = self.initialize_inner_board()
         self.initialize_outer_board()
         self.mode = "placing"
@@ -54,69 +77,32 @@ class MiniCalicoEnv:
 
     def get_legal_actions(self):
         legal_actions = []
-
         if self.mode == "placing":
-            # Optimization: Only try to place valid tiles (not empty slots in hand)
             valid_hand_indices = [i for i, x in enumerate(self.player_tiles) if x != NO_TILE_VALUE]
-
-            # Get all empty coordinates on the board
-            # Only check 1 to BOARD_SIZE-1 to avoid borders
             rows, cols = np.where(self.board_matrix[1:BOARD_SIZE - 1, 1:BOARD_SIZE - 1] == NO_TILE_VALUE)
-            # Offset by 1 because we sliced the center
             rows += 1
             cols += 1
-
             for idx in valid_hand_indices:
                 for r, c in zip(rows, cols):
                     legal_actions.append(('place', idx, r, c))
-
         elif self.mode == "buying":
             for shop_idx, _ in enumerate(self.shop_tiles):
                 legal_actions.append(('buy', shop_idx, None, None))
-
         return legal_actions
+
+    def fill_board_randomly(self):
+        for i in range(BOARD_SIZE-2):
+            for j in range(BOARD_SIZE-2):
+                if [i+1,j+1] in OBJECTIVE_POSITIONS_ON_BOARD:
+                    continue
+                self.board_matrix[i+1][j+1] = self.generate_random_tile()
 
     def perform_action(self, action):
         action_type, tile_idx, row, col = action
-
-        # Record state for undo
-        record = {
-            "action_type": action_type,
-            "mode": self.mode,
-            "selected_player_tile_index": self.selected_player_tile_index,
-            "player_tiles": list(self.player_tiles),  # Copy list
-            "shop_tiles": list(self.shop_tiles),  # Copy list
-        }
-
         if action_type == 'place':
-            record["prev_board_val"] = self.board_matrix[row][col]
-            record["row"] = row
-            record["col"] = col
             self.place_tile(row, col, tile_idx)
-
         elif action_type == 'buy':
-            # For buying, we need to know exactly what tile was removed/added to undo perfectly
-            # But for simple learning, full state restoration (above) is easier
             self.buy_tile(tile_idx)
-
-        self.move_history.append(record)
-
-    def undo_action(self):
-        if not self.move_history:
-            return
-
-        record = self.move_history.pop()
-
-        # Restore general state
-        self.mode = record["mode"]
-        self.selected_player_tile_index = record["selected_player_tile_index"]
-        self.player_tiles = record["player_tiles"]
-        self.shop_tiles = record["shop_tiles"]
-
-        # Specific restore for place
-        if record["action_type"] == 'place':
-            r, c = record["row"], record["col"]
-            self.board_matrix[r][c] = record["prev_board_val"]
 
     def place_tile(self, row, col, hand_idx):
         tile_id = self.player_tiles[hand_idx]
@@ -126,22 +112,14 @@ class MiniCalicoEnv:
         self.mode = "buying"
 
     def buy_tile(self, shop_idx):
-        # Take tile from shop to hand
         new_tile = self.shop_tiles[shop_idx]
         self.player_tiles[self.selected_player_tile_index] = new_tile
-
-        # Refill shop
         draw_tile = self.generate_random_tile()
-        if draw_tile is None: draw_tile = -99  # Empty pool marker
-
-        # Replace the specific shop slot
+        if draw_tile is None: draw_tile = -99
         self.shop_tiles[shop_idx] = draw_tile
         self.mode = "placing"
 
-    # --- INITIALIZATION HELPERS ---
-
     def initiate_tile_pool(self):
-        # 3 Colors * 3 Patterns * N identical copies
         pool = np.full(TILE_COLORS * TILE_PATTERNS, NR_OF_IDENTICAL_TILES)
         return pool
 
@@ -153,16 +131,13 @@ class MiniCalicoEnv:
         return choice
 
     def initialize_inner_board(self):
-        # Initialize with NO_TILE_VALUE
         matrix = np.full((BOARD_SIZE, BOARD_SIZE), NO_TILE_VALUE, dtype=int)
-        # Place Objectives
         for i, pos in enumerate(OBJECTIVE_POSITIONS_ON_BOARD):
             r, c = pos
             matrix[r][c] = OBJECTIVE_VALUE_BASE - i
         return matrix
 
     def initialize_outer_board(self):
-        # Fill borders with simplified pattern
         border = BOARD_BORDERS["mini"]
         b_idx = 0
         # Top
@@ -182,93 +157,96 @@ class MiniCalicoEnv:
             self.board_matrix[r][0] = border[b_idx % len(border)]
             b_idx += 1
 
-    def is_game_over(self):
-        # Check playable area (1 to 3)
-        inner = self.board_matrix[1:BOARD_SIZE - 1, 1:BOARD_SIZE - 1]
-        # Game over if no empty spots (-1) remain
-        return not np.any(inner == NO_TILE_VALUE)
-
-    # --- SIMPLIFIED SCORING FOR LEARNING ---
-    # We calculate score locally to avoid dependency on the big complex scoring file
-    # which assumes a 7x7 board.
-
     def calculate_score(self):
-        """
-        Simplified scoring for Mini Calico:
-        +1 point for every neighbor sharing COLOR
-        +1 point for every neighbor sharing PATTERN
-        """
-        score = 0
+        return get_total_score_on_board(self.board_matrix, self.cat_tiles)
 
-        # Iterate over inner playable board
-        for r in range(1, BOARD_SIZE - 1):
-            for c in range(1, BOARD_SIZE - 1):
-                tile_id = self.board_matrix[r][c]
+    def _get_tile_str(self, val):
+        """Helper to format a single tile value into a colored string."""
+        if val == NO_TILE_VALUE:
+            return f"{Colors.GRAY} . {Colors.RESET}"
 
-                # Skip empty or objective
-                if tile_id < 0: continue
+        if val <= OBJECTIVE_VALUE_BASE:
+            # Objective (e.g., -10 becomes "Obj")
+            return f"{Colors.BOLD}OBJ{Colors.RESET}"
 
-                my_color = tile_id // TILE_PATTERNS
-                my_pattern = tile_id % TILE_PATTERNS
+        if val == -99:
+            return "XXX"
 
-                # Check 4 neighbors (Up, Down, Left, Right)
-                neighbors = [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]
+        # Standard Tile
+        color_idx = val // TILE_PATTERNS
+        pattern_idx = val % TILE_PATTERNS
 
-                for nr, nc in neighbors:
-                    n_id = self.board_matrix[nr][nc]
-                    if n_id < 0: continue  # Skip empty/obj neighbors
+        # Safety check for index out of bounds
+        c_code = Colors.PALETTE[color_idx % len(Colors.PALETTE)]
+        sym = PATTERNS[pattern_idx % len(PATTERNS)]
 
-                    n_color = n_id // TILE_PATTERNS
-                    n_pattern = n_id % TILE_PATTERNS
+        return f"{c_code} {sym} {Colors.RESET}"
 
-                    if n_color == my_color: score += 1
-                    if n_pattern == my_pattern: score += 1
+    def render(self):
+        """Prints the board, hand, and shop in a nice format."""
 
-        return score
+        print(f"\n{Colors.BOLD}=== MINI CALICO BOARD ==={Colors.RESET}")
 
-    # --- STATE FOR CNN ---
+        # 1. Print The Board Matrix
+        rows, cols = self.board_matrix.shape
 
-    def get_cnn_state(self):
-        """
-        Returns (H, W, 4) for CNN input.
-        Channels: [Color, Pattern, IsOccupied, IsObjective]
-        """
-        H, W = self.board_matrix.shape
-        state = np.zeros((H, W, 4), dtype=float)
+        for r in range(rows):
+            # --- THE HEX SHIFT LOGIC ---
+            # If row is odd (1, 3, 5), add 2 spaces indentation.
+            # 2 spaces roughly aligns the bracket `[` between the two brackets above it.
+            indent = "   " if r % 2 == 1 else ""
 
-        for r in range(H):
-            for c in range(W):
+            line_str = f"{r:2} {indent}"  # Row Number + Indent
+
+            for c in range(cols):
                 val = self.board_matrix[r][c]
+                # Added a space " " after the bracket block to let the grid breathe
+                line_str += f"[{self._get_tile_str(val)}] "
 
-                if val >= 0:
-                    # Tile
-                    color = val // TILE_PATTERNS
-                    pattern = val % TILE_PATTERNS
+            print(line_str)
+        # 2. Print Game State Info
+        print(f"\n{Colors.BOLD}State:{Colors.RESET} {self.mode.upper()}")
 
-                    state[r, c, 0] = (color + 1) / float(TILE_COLORS)
-                    state[r, c, 1] = (pattern + 1) / float(TILE_PATTERNS)
-                    state[r, c, 2] = 1.0  # Occupied
-                elif val <= OBJECTIVE_VALUE_BASE:
-                    # Objective
-                    state[r, c, 3] = 1.0
-                # Else: Empty (-1) -> all zeros
+        # 3. Print Hand
+        hand_str = " ".join([f"[{self._get_tile_str(t)}]" for t in self.player_tiles])
+        print(f"{Colors.BOLD}Player Hand:{Colors.RESET} {hand_str}")
 
-        return state
+        # 4. Print Shop
+        shop_str = " ".join([f"[{self._get_tile_str(t)}]" for t in self.shop_tiles])
+        print(f"{Colors.BOLD}Market:{Colors.RESET}      {shop_str}")
+        print(f"{Colors.BOLD}Score:{Colors.RESET}      {str(self.calculate_score())}")
+        print("=========================\n")
 
-    def get_flat_state(self):
-        # Fallback if using dense network
-        return self.get_cnn_state().flatten()
 
     def __str__(self):
-        return str(self.board_matrix)
+        # Override str so print(env) works automatically
+        self.render()
+        return ""
 
 
+# --- DEMO EXECUTION ---
 if __name__ == "__main__":
     env = MiniCalicoEnv()
     env.start_game()
-    print("Mini Calico Initialized")
-    env.perform_action(("place",1,1,1))
-    env.perform_action(("buy",1,1,1))
-    env.perform_action(("place",1,2,1))
+
+    print("1. Initial State:")
     print(env)
-    print("Score:", env.calculate_score())
+
+    # Find a valid move to demonstrate change
+    legal = env.get_legal_actions()
+    if legal:
+        action = legal[0]
+        print(f"Performing Action: {action}")
+        env.perform_action(action)
+        print(env)
+
+    # Buy something
+    if env.mode == "buying":
+        shop_action = ("buy", 0, None, None)
+        print(f"Performing Buy: {shop_action}")
+        env.perform_action(shop_action)
+        print(env)
+
+    env.fill_board_randomly()
+    print("2. Final State:")
+    print(env)

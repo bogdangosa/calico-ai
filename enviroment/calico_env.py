@@ -19,6 +19,18 @@ class CalicoEnv:
         self.mode = ""
         self.selected_player_tile_index = 0
 
+    def get_board_tensor(self):
+        tensor = np.zeros((BOARD_SIZE, BOARD_SIZE, TILE_COLORS + TILE_PATTERNS + 1))
+        for r in range(BOARD_SIZE):
+            for c in range(BOARD_SIZE):
+                val = self.board_matrix[r, c]
+                if val >= 0:
+                    tensor[r, c, val // TILE_PATTERNS] = 1.0
+                    tensor[r, c, TILE_COLORS + (val % TILE_PATTERNS)] = 1.0
+                elif val < 0 and val != NO_TILE_VALUE:
+                    tensor[r, c, 12] = 1.0
+        return tensor
+
     def get_legal_actions(self):
         """Return a list of legal actions as tuples:
            (action_type, tile_index, row, col)
@@ -123,8 +135,6 @@ class CalicoEnv:
             self.selected_player_tile_index = record["prev_selected_index"]
 
     def start_game(self,seed=41):
-        #random.seed(seed)
-        #np.random.seed(seed)
         self.tile_pool = self.initiate_tile_pool()
         self.player_tiles = [self.generate_random_tile() for _ in range(PLAYER_HAND_SIZE)]
         self.shop_tiles = self.initiate_shop_tiles()
