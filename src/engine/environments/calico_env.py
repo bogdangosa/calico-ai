@@ -1,15 +1,17 @@
 import copy
+import json
 import random
-
+import logging
 import numpy as np
 
-from enviroment.calico_scoring import get_total_score_on_board
-from utils.constants import *
-
-
+from src.engine.scoring import ScoringCalculator
+from src.models.game_config import GameSettings
 
 class CalicoEnv:
-    def __init__(self):
+    def __init__(self,config: GameSettings):
+        self.config = config
+        self.size = config.board.size
+        
         self.tile_pool = None
         self.player_tiles = []
         self.shop_tiles = []
@@ -20,14 +22,14 @@ class CalicoEnv:
         self.selected_player_tile_index = 0
 
     def get_board_tensor(self):
-        tensor = np.zeros((BOARD_SIZE, BOARD_SIZE, TILE_COLORS + TILE_PATTERNS + 1))
-        for r in range(BOARD_SIZE):
-            for c in range(BOARD_SIZE):
+        tensor = np.zeros((self.size, self.size, self.config.tiles.colors + self.config.tiles.patterns + 1))
+        for r in range(self.size):
+            for c in range(self.size):
                 val = self.board_matrix[r, c]
                 if val >= 0:
-                    tensor[r, c, val // TILE_PATTERNS] = 1.0
-                    tensor[r, c, TILE_COLORS + (val % TILE_PATTERNS)] = 1.0
-                elif val < 0 and val != NO_TILE_VALUE:
+                    tensor[r, c, val // self.config.tiles.patterns] = 1.0
+                    tensor[r, c, self.config.tiles.colors + (val % self.config.tiles.patterns)] = 1.0
+                elif val < 0 and val != self.config.board.no_tile_value:
                     tensor[r, c, 12] = 1.0
         return tensor
 
@@ -41,11 +43,11 @@ class CalicoEnv:
         if self.mode == "placing":
             # Place tile actions
             for idx, tile_id in enumerate(self.player_tiles):
-                if tile_id == NO_TILE_VALUE:
+                if tile_id == self.config.board.self.config.board.no_tile_value:
                     continue
-                for r in range(BOARD_SIZE):
-                    for c in range(BOARD_SIZE):
-                        if self.board_matrix[r][c] == NO_TILE_VALUE:
+                for r in range(self.size):
+                    for c in range(self.size):
+                        if self.board_matrix[r][c] == self.config.board.self.config.board.no_tile_value:
                             legal_actions.append(('place', idx, r, c))
 
         if self.mode == "buying":
@@ -57,7 +59,7 @@ class CalicoEnv:
 
     def set_selected_from_empty(self):
         for index,tile in enumerate(self.player_tiles, start=0):
-            if tile == NO_TILE_VALUE:
+            if tile == self.config.board.no_tile_value:
                 self.selected_player_tile_index = index
 
     def perform_action(self, action):
@@ -136,7 +138,7 @@ class CalicoEnv:
 
     def start_game(self,seed=41):
         self.tile_pool = self.initiate_tile_pool()
-        self.player_tiles = [self.generate_random_tile() for _ in range(PLAYER_HAND_SIZE)]
+        self.player_tiles = [self.generate_random_tile() for _ in range(self.config.player_hand_size)]
         self.shop_tiles = self.initiate_shop_tiles()
         self.cat_tiles = self.initialize_cat_tiles()
         self.board_matrix = self.initialize_inner_board()
@@ -145,7 +147,7 @@ class CalicoEnv:
         self.selected_player_tile_index = 0
 
     def is_game_over(self):
-        return not np.any(self.board_matrix == NO_TILE_VALUE)
+        return not np.any(self.board_matrix == self.config.board.no_tile_value)
 
     def buy_tile(self, tile_index: int):
         """Buy a tile from the shop and update the player hand."""
@@ -160,7 +162,7 @@ class CalicoEnv:
         """Place a selected tile on the board and update score."""
         selected_tile_id = self.player_tiles[selected_tile_index]
         self.board_matrix[row][col] = selected_tile_id
-        self.player_tiles[selected_tile_index] = NO_TILE_VALUE
+        self.player_tiles[selected_tile_index] = self.config.board.no_tile_value
         self.selected_player_tile_index = selected_tile_index
         self.mode = "buying"
 
@@ -179,16 +181,16 @@ class CalicoEnv:
         return new_tile
 
     def initiate_tile_pool(self):
-        return np.full(TILE_COLORS * TILE_PATTERNS, NR_OF_IDENTICAL_TILES)
+        return np.full(self.config.tiles.colors * self.config.tiles.patterns, self.config.tiles.identical_tiles)
 
     def initiate_shop_tiles(self):
-        return [self.generate_random_tile() for _ in range(NR_OF_TILES_IN_SHOP)]
+        return [self.generate_random_tile() for _ in range(self.config.nr_of_tiles_in_shop)]
 
     def initiate_player_tiles(self):
-        return [self.generate_random_tile() for _ in range(PLAYER_HAND_SIZE)]
+        return [self.generate_random_tile() for _ in range(self.config.player_hand_size)]
 
     def initialize_cat_tiles(self):
-        cat_tiles = np.arange(1, CAT_TILE_TYPES + 1)
+        cat_tiles = np.arange(1, self.config.tiles.cat_types + 1)
         np.random.shuffle(cat_tiles)  # shuffles in place
         return cat_tiles
 
@@ -202,49 +204,57 @@ class CalicoEnv:
         return tile_id
 
     def fill_board_randomly(self):
-        for i in range(BOARD_SIZE-2):
-            for j in range(BOARD_SIZE-2):
-                if [i+1,j+1] in OBJECTIVE_POSITIONS_ON_BOARD:
+        for i in range(self.size-2):
+            for j in range(self.size-2):
+                if [i+1,j+1] in self.config.board.objective_positions:
                     continue
                 self.board_matrix[i+1][j+1] = self.generate_random_tile()
 
     def initialize_inner_board(self):
         """
         Creates a 5x5 playable board:
-          - all cells initialized to NO_TILE_VALUE
+          - all cells initialized to self.config.board.no_tile_value
           - objectives placed at specified coordinates (negative IDs)
         """
-        board_matrix = np.full((BOARD_SIZE, BOARD_SIZE), NO_TILE_VALUE, dtype=int)
+        board_matrix = np.full((self.size, self.size), self.config.board.no_tile_value, dtype=int)
 
         # Place objectives (negative IDs)
-        for i, (row, col) in enumerate(OBJECTIVE_POSITIONS_ON_BOARD, start=1):
+        for i, (row, col) in enumerate(self.config.board.objective_positions, start=1):
             board_matrix[row, col] = -i
 
         return board_matrix
 
-    def initialize_outer_board(self,board_color):
-        board_border = BOARD_BORDERS[board_color]
-        tile_index = 0
+    def initialize_outer_board(self, board_color: str):
+        """
+        Populates the board perimeter with pre-defined border tiles.
+        Uses a clockwise traversal: Top -> Right -> Bottom -> Left.
+        """
+        border_tiles = self.config.board.borders.get(board_color)
+        if not border_tiles:
+            raise ValueError(f"Border color '{board_color}' not found in configuration.")
 
-        # Top row (left to right): [0][0..6]
-        for col in range(7):
-            self.board_matrix[0][col] = board_border[tile_index]
-            tile_index += 1
+        tile_iterator = iter(border_tiles)
+        last_index = self.size - 1
 
-        # Right column (top to bottom, excluding corners): [1..5][6]
-        for row in range(1, 6):
-            self.board_matrix[row][6] = board_border[tile_index]
-            tile_index += 1
+        try:
+            for col in range(self.size):
+                self.board_matrix[0, col] = next(tile_iterator)
 
-        # Bottom row (right to left): [6][6..0]
-        for col in range(6, -1, -1):
-            self.board_matrix[6][col] = board_border[tile_index]
-            tile_index += 1
+            for row in range(1, last_index):
+                self.board_matrix[row, last_index] = next(tile_iterator)
 
-        # Left column (bottom to top, excluding corners): [5..1][0]
-        for row in range(5, 0, -1):
-            self.board_matrix[row][0] = board_border[tile_index]
-            tile_index += 1
+            for col in range(last_index, -1, -1):
+                self.board_matrix[last_index, col] = next(tile_iterator)
+
+            for row in range(last_index - 1, 0, -1):
+                self.board_matrix[row, 0] = next(tile_iterator)
+
+        except StopIteration:
+
+            logging.warning(
+                f"Border tile sequence for '{board_color}' is shorter than "
+                f"the required {4 * self.size - 4} tiles for a {self.size}x{self.size} board."
+            )
 
     def get_flat_state(self):
         """
@@ -304,8 +314,8 @@ class CalicoEnv:
 
         # --- Board matrix ---
         board_shape = np.shape(self.board_matrix)
-        board_size = np.prod(board_shape)
-        self.board_matrix = flat_state[idx:idx + board_size].reshape(board_shape)
+        self.size = np.prod(board_shape)
+        self.board_matrix = flat_state[idx:idx + self.size].reshape(board_shape)
 
     def __str__(self):
         s = []
@@ -340,7 +350,19 @@ class CalicoEnv:
         return "\n".join(s)
 
 if __name__ == "__main__":
-    env = CalicoEnv()
+    with open("../../../config/calico_settings.json", "r") as f:
+        config_data = json.load(f)
+
+    # 2. Parse into Pydantic model
+    config_game = GameSettings(**config_data)
+    env = CalicoEnv(config_game)
     env.start_game()
 
+    env.fill_board_randomly()
     print(env)
+
+    scoring = ScoringCalculator(config_game)
+
+    score = scoring.get_total_detailed_score(env.board_matrix,env.cat_tiles)
+
+    print(score)
