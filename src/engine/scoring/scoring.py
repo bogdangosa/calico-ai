@@ -8,7 +8,7 @@ class ScoringCalculator:
         self.empty_val = config.board.no_tile_value
 
     def evaluate_move(self, board, cat_tiles, tile_pool=None):
-        current_score, *_ = self.scorer.get_total_detailed_score(
+        current_score, *_ = self.get_total_detailed_score(
             board,
             cat_tiles
         )

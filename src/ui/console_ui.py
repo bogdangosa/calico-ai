@@ -1,9 +1,14 @@
 import numpy as np
+from src.engine.environments.calico_env import CalicoEnv
 from src.engine.scoring.scoring import ScoringCalculator
+from src.ui.table_renderer import TableRenderer
+
 
 class CalicoConsoleUI:
-    def __init__(self, env):
+    def __init__(self, env : CalicoEnv, renderer: TableRenderer,scorer : ScoringCalculator):
         self.env = env
+        self.scorer = scorer
+        self.renderer = renderer
         self.config = env.config
         self.empty_val = self.config.board.no_tile_value
         self.game_over = False
@@ -23,7 +28,6 @@ class CalicoConsoleUI:
     def handle_placing_phase(self, legal_actions):
         """Logic for the 'place' mode."""
         print(f"\n--- PLACING PHASE ---")
-        print(f"Your Hand: {self.env.player_tiles}")
 
         hand_idx = self._get_input(f"Pick tile index from hand (0-{len(self.env.player_tiles) - 1}): ",
                                    range(len(self.env.player_tiles)))
@@ -73,7 +77,7 @@ class CalicoConsoleUI:
         print("=== CALICO CONSOLE ===")
 
         while not self.game_over:
-            print(self.env)
+            self.renderer.render(self.env, self.scorer)
 
             action = self.get_user_action()
 
@@ -82,10 +86,9 @@ class CalicoConsoleUI:
                 print(f"Action Successful: {action.action_type}")
 
             if self.env.is_game_over():
-                print(self.env)
+                self.renderer.render(self.env, self.scorer)
                 print("\nBoard is full! Game Over.")
                 self.game_over = True
 
-        scorer = ScoringCalculator(self.config)
-        total, *details = scorer.get_total_detailed_score(self.env.board_matrix, self.env.cat_tiles)
+        total, *details = self.scorer.get_total_detailed_score(self.env.board_matrix, self.env.cat_tiles)
         print(f"Final Score: {total}")

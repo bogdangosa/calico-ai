@@ -5,6 +5,8 @@ import numpy as np
 
 from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_config import GameSettings
+from src.models.game_models import CalicoAction, ActionType
+
 
 class CalicoEnv:
     def __init__(self,config: GameSettings):
@@ -40,7 +42,6 @@ class CalicoEnv:
         """
         legal_actions = []
         if self.mode == "placing":
-            # Place tile actions
             for idx, tile_id in enumerate(self.player_tiles):
                 if tile_id == self.config.board.no_tile_value:
                     continue
@@ -50,11 +51,46 @@ class CalicoEnv:
                             legal_actions.append(('place', idx, r, c))
 
         if self.mode == "buying":
-            # Buy tile actions
             for shop_idx, shop_tile in enumerate(self.shop_tiles):
                 legal_actions.append(('buy', shop_idx, None, None))
 
         return legal_actions
+
+    def get_legal_actions_new(self):
+        legal_actions = []
+
+        if self.mode == "placing":
+            empty_slots = [
+                (r, c) for r in range(self.size) for c in range(self.size)
+                if self.board_matrix[r][c] == self.config.board.no_tile_value
+            ]
+
+            for idx, tile_id in enumerate(self.player_tiles):
+                if tile_id == self.config.board.no_tile_value:
+                    continue
+
+                for r, c in empty_slots:
+                    legal_actions.append(CalicoAction(
+                        action_type=ActionType.PLACE,
+                        tile_index=idx,
+                        row=r,
+                        col=c
+                    ))
+
+        elif self.mode == "buying":
+            for shop_idx in range(len(self.shop_tiles)):
+                legal_actions.append(CalicoAction(
+                    action_type=ActionType.BUY,
+                    tile_index=shop_idx
+                ))
+
+        return legal_actions
+
+    def perform_action_new(self, action: CalicoAction):
+        if action.action_type == ActionType.PLACE:
+            self.place_tile(action.row, action.col, action.tile_index)
+        elif action.action_type == ActionType.BUY:
+            self.buy_tile(action.tile_index)
 
     def set_selected_from_empty(self):
         for index,tile in enumerate(self.player_tiles, start=0):
@@ -320,23 +356,19 @@ class CalicoEnv:
         s = []
         s.append("=== Calico Environment ===")
 
-        # Tile pool summary
         if isinstance(self.tile_pool, np.ndarray):
             s.append(f"Tile Pool: {self.tile_pool.tolist()}")
         else:
             s.append(f"Tile Pool: {self.tile_pool}")
 
-        # Player and shop info
         s.append(f"Player Tiles: {self.player_tiles}")
         s.append(f"Shop Tiles: {self.shop_tiles}")
 
-        # Cat tiles
         if isinstance(self.cat_tiles, np.ndarray):
             s.append(f"Cat Tiles: {self.cat_tiles.tolist()}")
         else:
             s.append(f"Cat Tiles: {self.cat_tiles}")
 
-        # Board visualization
         s.append("Board Matrix:")
         if isinstance(self.board_matrix, np.ndarray):
             board_str = "\n".join(

@@ -12,7 +12,7 @@ from src.utils.config import load_config
 config = load_config("../../config/calico_settings.json")
 env = CalicoEnv(config)
 scorer = PotentialScoringCalculator(config)
-agent = TopKLookaheadAgent(scorer,config,depth=4,k_factor=2)
+agent = MultiStepLookaheadAgent(scorer,config,depth=1)
 
 run_simulation(
     env=env,

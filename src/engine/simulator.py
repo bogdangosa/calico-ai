@@ -1,10 +1,11 @@
 import time
 import numpy as np
+from loguru import logger
+
 from src.engine.scoring.scoring import ScoringCalculator
 from src.utils.timing import time_it
 from src.utils.visuals import plot_score_distribution
 
-@time_it
 def play_full_game(env, agent, render=False):
     """
     A universal runner for any Calico agent.
@@ -19,7 +20,7 @@ def play_full_game(env, agent, render=False):
 
     while not env.is_game_over():
         if render:
-            print(env)
+            logger.info(env)
 
         action = agent.select_action(env)
 
@@ -39,7 +40,7 @@ def play_full_game(env, agent, render=False):
 def run_simulation(env, agent, num_games=1000, progress_interval=100):
     """Runs a batch of games and reports metrics."""
     scores = []
-    print(f"Starting simulation: {num_games} games with {agent.__class__.__name__}...")
+    logger.info(f"Starting simulation: {num_games} games with {agent.__class__.__name__}...")
 
     start_time = time.perf_counter()
 
@@ -48,20 +49,20 @@ def run_simulation(env, agent, num_games=1000, progress_interval=100):
         scores.append(score)
 
         if (i + 1) % progress_interval == 0:
-            print(f"Completed {i + 1}/{num_games} games...")
+            logger.info(f"Completed {i + 1}/{num_games} games...")
 
     duration = time.perf_counter() - start_time
 
     average_score = np.mean(scores)
     max_score = np.max(scores)
 
-    print("\n" + "=" * 30)
-    print("SIMULATION COMPLETE")
-    print(f"Average Score: {average_score:.2f}")
-    print(f"Highest Score: {max_score}")
-    print(f"Total Time:    {duration:.4f}s")
-    print(f"Avg Time/Game: {(duration / num_games) * 1000:.2f}ms")
-    print("=" * 30 + "\n")
+    logger.info("\n" + "=" * 30)
+    logger.info("SIMULATION COMPLETE")
+    logger.info(f"Average Score: {average_score:.2f}")
+    logger.info(f"Highest Score: {max_score}")
+    logger.info(f"Total Time:    {duration:.4f}s")
+    logger.info(f"Avg Time/Game: {(duration / num_games) * 1000:.2f}ms")
+    logger.info("=" * 30 + "\n")
 
     plot_score_distribution(scores)
     return scores
