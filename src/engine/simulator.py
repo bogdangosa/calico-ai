@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from src.engine.scoring import ScoringCalculator
+from src.engine.scoring.scoring import ScoringCalculator
 from src.utils.visuals import plot_score_distribution
 
 def play_full_game(env, agent, render=False):

@@ -1,10 +1,9 @@
 import copy
 import json
-import random
 import logging
 import numpy as np
 
-from src.engine.scoring import ScoringCalculator
+from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_config import GameSettings
 
 class CalicoEnv:

@@ -7,6 +7,13 @@ class ScoringCalculator:
         self.size = config.board.size
         self.empty_val = config.board.no_tile_value
 
+    def evaluate_move(self, board, cat_tiles, tile_pool=None):
+        current_score, *_ = self.scorer.get_total_detailed_score(
+            board,
+            cat_tiles
+        )
+        return current_score
+
     def get_color_id(self, tile_id: int) -> int:
         return tile_id // self.config.tiles.colors
 

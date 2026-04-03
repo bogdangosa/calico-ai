@@ -5,7 +5,6 @@ import csv
 import numpy as np
 
 # NOTE: External imports are preserved, assuming they are accessible
-from enviroment.calico_env import CalicoEnv
 from enviroment.calico_potential_scoring import evaluate_move, generate_random_config
 from enviroment.calico_scoring import get_total_score_on_board, get_total_score_on_board_detailed
 from utils.constants import *
@@ -229,10 +228,3 @@ def test_random_configs(
         print(f"Score={score:.2f}  Config={cfg}")
 
     return results
-
-
-# test_random_configs()
-if __name__ == "__main__":
-    # Example usage: Set LOG_RESULTS_TO_CSV = True above to log results
-    # WARNING: This will overwrite/append to agent_lookahead_results.csv
-    print(test_one_step_lookahead(number_of_tries=50, print_results=True))
