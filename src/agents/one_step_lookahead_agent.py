@@ -4,9 +4,8 @@ from src.engine.scoring.scoring import ScoringCalculator
 
 
 class OneStepLookaheadAgent:
-    def __init__(self, scorer: ScoringCalculator, config, depth=1):
+    def __init__(self, scorer: ScoringCalculator, config):
         self.config = config
-        self.depth = depth
         self.scorer = scorer
 
     def select_action(self, env):

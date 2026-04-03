@@ -1,20 +1,18 @@
-import json
 
+from src.agents.multi_step_lookahead_agent import MultiStepLookaheadAgent
 from src.agents.one_step_lookahead_agent import OneStepLookaheadAgent
+from src.agents.topk_lookahead_agent import TopKLookaheadAgent
 from src.engine.scoring.potential_scoring import PotentialScoringCalculator
 from src.engine.scoring.scoring import ScoringCalculator
 from src.engine.simulator import run_simulation
 from src.models.game_config import GameSettings
 from src.engine.environments.calico_env import CalicoEnv
+from src.utils.config import load_config
 
-config_path = "../../config/calico_settings.json"
-with open(config_path, "r") as f:
-    config_data = json.load(f)
-
-config = GameSettings(**config_data)
+config = load_config("../../config/calico_settings.json")
 env = CalicoEnv(config)
 scorer = PotentialScoringCalculator(config)
-agent = OneStepLookaheadAgent(scorer,config)
+agent = TopKLookaheadAgent(scorer,config,depth=4,k_factor=2)
 
 run_simulation(
     env=env,

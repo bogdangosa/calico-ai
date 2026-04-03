@@ -1,8 +1,10 @@
 import time
 import numpy as np
 from src.engine.scoring.scoring import ScoringCalculator
+from src.utils.timing import time_it
 from src.utils.visuals import plot_score_distribution
 
+@time_it
 def play_full_game(env, agent, render=False):
     """
     A universal runner for any Calico agent.
