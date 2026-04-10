@@ -1,6 +1,7 @@
 import numpy as np
 from src.engine.environments.calico_env import CalicoEnv
 from src.engine.scoring.scoring import ScoringCalculator
+from src.models.game_models import CalicoAction, ActionType
 from src.ui.table_renderer import TableRenderer
 
 
@@ -25,7 +26,7 @@ class CalicoConsoleUI:
             print("Input error! Please enter an integer.")
             return None
 
-    def handle_placing_phase(self, legal_actions):
+    def handle_placing_phase(self, legal_actions: list[CalicoAction]):
         """Logic for the 'place' mode."""
         print(f"\n--- PLACING PHASE ---")
 
@@ -33,12 +34,12 @@ class CalicoConsoleUI:
                                    range(len(self.env.player_tiles)))
         if hand_idx is None: return None
 
-        row = self._get_input(f"Enter row (0-{self.config.board.size - 1}): ")
-        col = self._get_input(f"Enter col (0-{self.config.board.size - 1}): ")
+        row = self._get_input(f"Enter row (1-{self.config.board.size - 2}): ")
+        col = self._get_input(f"Enter col (1-{self.config.board.size - 2}): ")
 
-        for a in legal_actions:
-            if a.action_type == "place" and a.tile_index == hand_idx and a.row == row and a.col == col:
-                return a
+        for action in legal_actions:
+            if action.action_type == ActionType.PLACE and action.tile_index == hand_idx and action.row == row and action.col == col:
+                return action
 
         print("Invalid placement! Spot is either taken, an objective, or out of bounds.")
         return None
@@ -53,7 +54,7 @@ class CalicoConsoleUI:
         if shop_idx is None: return None
 
         for a in legal_actions:
-            if a.action_type == "buy" and a.tile_index == shop_idx:
+            if a.action_type == ActionType.BUY and a.tile_index == shop_idx:
                 return a
 
         print("Invalid shop index!")
@@ -63,10 +64,9 @@ class CalicoConsoleUI:
         """Determines the current mode and routes to the correct input handler."""
         legal_actions = self.env.get_legal_actions()
         if not legal_actions:
-            self.game_over = True
-            return None
+            raise RuntimeError("No legal actions available!")
 
-        if len(self.env.player_tiles) == self.config.player_hand_size:
+        if self.env.mode == ActionType.PLACE:
             return self.handle_placing_phase(legal_actions)
         else:
             return self.handle_buying_phase(legal_actions)

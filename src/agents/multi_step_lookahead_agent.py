@@ -1,5 +1,8 @@
 import random
+
+from src.engine.environments.calico_env import CalicoEnv
 from src.engine.scoring.scoring import ScoringCalculator
+from src.models.game_models import CalicoAction
 
 
 class MultiStepLookaheadAgent:
@@ -8,7 +11,10 @@ class MultiStepLookaheadAgent:
         self.depth = depth
         self.scorer = scorer
 
-    def select_action(self, env):
+    def select_action(self, env: CalicoEnv):
+        if not env.history_manager:
+            env.enable_history()
+
         legal_actions = env.get_legal_actions()
         if not legal_actions:
             return None
@@ -30,6 +36,7 @@ class MultiStepLookaheadAgent:
                 best_actions.append(action)
 
         return random.choice(best_actions)
+
 
     def _recursive_search(self, env, current_depth):
         if current_depth <= 0 or env.is_game_over():

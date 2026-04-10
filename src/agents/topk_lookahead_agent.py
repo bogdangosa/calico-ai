@@ -1,5 +1,7 @@
 import random
 from src.engine.scoring.scoring import ScoringCalculator
+from src.engine.environments.calico_env import CalicoEnv
+from src.models.game_models import CalicoAction
 from src.utils.timing import time_it
 
 
@@ -10,7 +12,7 @@ class TopKLookaheadAgent:
         self.k_factor = k_factor
         self.scorer = scorer
 
-    def _get_pruned_actions(self, env, actions):
+    def _get_pruned_actions(self, env: CalicoEnv, actions: list[CalicoAction]):
         scored_candidates = []
 
         for action in actions:
@@ -23,7 +25,10 @@ class TopKLookaheadAgent:
 
         return [action for _, action in scored_candidates[:self.k_factor]]
 
-    def select_action(self, env):
+    def select_action(self, env: CalicoEnv):
+        if not env.history_manager:
+            env.enable_history()
+
         legal_actions = env.get_legal_actions()
         if not legal_actions:
             return None

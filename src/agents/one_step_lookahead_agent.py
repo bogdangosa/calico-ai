@@ -1,18 +1,21 @@
 import random
 
 from src.engine.scoring.scoring import ScoringCalculator
-
+from src.engine.environments.calico_env import CalicoEnv
 
 class OneStepLookaheadAgent:
     def __init__(self, scorer: ScoringCalculator, config):
         self.config = config
         self.scorer = scorer
 
-    def select_action(self, env):
+    def select_action(self, env: CalicoEnv):
         """
         Evaluates all legal actions by simulating them and picking the one
         that results in the highest immediate score/potential.
         """
+        if not env.history_manager:
+            env.enable_history()
+
         legal_actions = env.get_legal_actions()
         if not legal_actions:
             return None

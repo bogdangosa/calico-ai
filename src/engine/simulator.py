@@ -25,7 +25,7 @@ def play_full_game(env, agent, render=False):
         action = agent.select_action(env)
 
         if action is None:
-            break
+            raise RuntimeError("No action selected.")
 
         env.perform_action(action)
 

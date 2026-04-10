@@ -3,6 +3,7 @@ import json
 import logging
 import numpy as np
 
+from src.engine.environments.history_manager import HistoryManager
 from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_config import GameSettings
 from src.models.game_models import CalicoAction, ActionType
@@ -12,6 +13,7 @@ class CalicoEnv:
     def __init__(self,config: GameSettings):
         self.config = config
         self.size = config.board.size
+        self.history_manager = None
         
         self.tile_pool = None
         self.player_tiles = []
@@ -21,6 +23,9 @@ class CalicoEnv:
         self.move_history = []
         self.mode = ""
         self.selected_player_tile_index = 0
+
+    def enable_history(self):
+        self.history_manager = HistoryManager(self)
 
     def get_board_tensor(self):
         tensor = np.zeros((self.size, self.size, self.config.tiles.colors + self.config.tiles.patterns + 1))
@@ -34,32 +39,10 @@ class CalicoEnv:
                     tensor[r, c, 12] = 1.0
         return tensor
 
-    def get_legal_actions(self):
-        """Return a list of legal actions as tuples:
-           (action_type, tile_index, row, col)
-           action_type: 'place' or 'buy'
-           For 'buy', row and col are None
-        """
+
+    def get_legal_actions(self)->list[CalicoAction]:
         legal_actions = []
-        if self.mode == "placing":
-            for idx, tile_id in enumerate(self.player_tiles):
-                if tile_id == self.config.board.no_tile_value:
-                    continue
-                for r in range(self.size):
-                    for c in range(self.size):
-                        if self.board_matrix[r][c] == self.config.board.no_tile_value:
-                            legal_actions.append(('place', idx, r, c))
-
-        if self.mode == "buying":
-            for shop_idx, shop_tile in enumerate(self.shop_tiles):
-                legal_actions.append(('buy', shop_idx, None, None))
-
-        return legal_actions
-
-    def get_legal_actions_new(self):
-        legal_actions = []
-
-        if self.mode == "placing":
+        if self.mode == ActionType.PLACE:
             empty_slots = [
                 (r, c) for r in range(self.size) for c in range(self.size)
                 if self.board_matrix[r][c] == self.config.board.no_tile_value
@@ -77,7 +60,7 @@ class CalicoEnv:
                         col=c
                     ))
 
-        elif self.mode == "buying":
+        elif self.mode == ActionType.BUY:
             for shop_idx in range(len(self.shop_tiles)):
                 legal_actions.append(CalicoAction(
                     action_type=ActionType.BUY,
@@ -86,8 +69,10 @@ class CalicoEnv:
 
         return legal_actions
 
-    def perform_action_new(self, action: CalicoAction):
-        if action.action_type == ActionType.PLACE:
+    def perform_action(self, action: CalicoAction):
+        if self.history_manager:
+            self.history_manager.record_and_perform(action)
+        elif action.action_type == ActionType.PLACE:
             self.place_tile(action.row, action.col, action.tile_index)
         elif action.action_type == ActionType.BUY:
             self.buy_tile(action.tile_index)
@@ -97,79 +82,11 @@ class CalicoEnv:
             if tile == self.config.board.no_tile_value:
                 self.selected_player_tile_index = index
 
-    def perform_action(self, action):
-        """Apply an action to the environment and save it in move_history for undo."""
-        action_type, tile_idx, row, col = action
-        record = {"action_type": action_type}
-
-        if action_type == 'place':
-            record.update({
-                "row": row,
-                "col": col,
-                "hand_index": tile_idx,
-                "hand_value": self.player_tiles[tile_idx],
-                "prev_tile": self.board_matrix[row][col],
-                "prev_mode": self.mode,
-                "prev_selected_index": self.selected_player_tile_index
-            })
-            self.place_tile(row, col, tile_idx)
-
-        elif action_type == 'buy':
-            record.update({
-                "shop_index": tile_idx,
-                "prev_mode": self.mode,
-                "prev_selected_index": self.selected_player_tile_index,
-                "hand_value": self.player_tiles[self.selected_player_tile_index],
-                "shop_snapshot": copy.deepcopy(self.shop_tiles)
-            })
-            self.buy_tile(tile_idx)
-            record.update({
-                "new_shop_snapshot": copy.deepcopy(self.shop_tiles)
-            })
-
-        # Save the record for undo
-        self.move_history.append(record)
-
     def undo_action(self):
-        """Undo the last performed action."""
-        if not self.move_history:
-            return  # nothing to undo
-
-        record = self.move_history.pop()
-        action_type = record["action_type"]
-
-        if action_type == "place":
-            row = record["row"]
-            col = record["col"]
-            hand_index = record["hand_index"]
-
-            # Restore board cell
-            self.board_matrix[row][col] = record["prev_tile"]
-
-            # Restore player hand
-            self.player_tiles[hand_index] = record["hand_value"]
-
-            # Restore mode and selected index
-            self.mode = record["prev_mode"]
-            self.selected_player_tile_index = record["prev_selected_index"]
-
-        elif action_type == "buy":
-            # Restore shop tiles exactly
-            self.shop_tiles = record["shop_snapshot"].copy()
-
-            # Restore player hand
-            self.player_tiles[self.selected_player_tile_index] = record["hand_value"]
-
-            # Restore the tile pool: return the purchased tile
-            new_shop_snapshot = record["new_shop_snapshot"].copy()
-            self.tile_pool[new_shop_snapshot[1]] += 1
-            self.tile_pool[new_shop_snapshot[2]] += 1
-
-
-
-            # Restore mode and selected index
-            self.mode = record["prev_mode"]
-            self.selected_player_tile_index = record["prev_selected_index"]
+        if self.history_manager:
+            self.history_manager.undo()
+        else:
+            raise RuntimeError("History manager not initialized!")
 
     def start_game(self,seed=41):
         self.tile_pool = self.initiate_tile_pool()
@@ -178,7 +95,7 @@ class CalicoEnv:
         self.cat_tiles = self.initialize_cat_tiles()
         self.board_matrix = self.initialize_inner_board()
         self.initialize_outer_board("purple")
-        self.mode = "placing"
+        self.mode = ActionType.PLACE
         self.selected_player_tile_index = 0
 
     def is_game_over(self):
@@ -186,11 +103,11 @@ class CalicoEnv:
 
     def buy_tile(self, tile_index: int):
         """Buy a tile from the shop and update the player hand."""
-        self.mode = "placing"
+        self.mode = ActionType.PLACE
         bought_tile_id = self.shop_tiles[tile_index]
         self.player_tiles[self.selected_player_tile_index] = bought_tile_id
-        self.replace_tile(tile_index)  # replace purchased tile
-        self.replace_tile(0)  # optional: replace first tile in shop
+        self.replace_tile(tile_index)
+        self.replace_tile(0)
         return bought_tile_id
 
     def place_tile(self, row: int, col: int, selected_tile_index: int):
@@ -199,19 +116,15 @@ class CalicoEnv:
         self.board_matrix[row][col] = selected_tile_id
         self.player_tiles[selected_tile_index] = self.config.board.no_tile_value
         self.selected_player_tile_index = selected_tile_index
-        self.mode = "buying"
+        self.mode = ActionType.BUY
 
     def replace_tile(self, tile_index: int):
         """
         Replace a tile in the shop at `tile_index` with a new random tile.
         """
-        # Remove tile at tile_index
         self.shop_tiles = np.delete(self.shop_tiles, tile_index)
 
-        # Generate a new random tile
         new_tile = self.generate_random_tile()
-
-        # Append the new tile to the end of the shop
         self.shop_tiles = np.append(self.shop_tiles, new_tile)
         return new_tile
 
