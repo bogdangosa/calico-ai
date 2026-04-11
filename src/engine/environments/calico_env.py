@@ -27,6 +27,10 @@ class CalicoEnv:
     def enable_history(self):
         self.history_manager = HistoryManager(self)
 
+
+    def disable_history(self):
+        self.history_manager = None
+
     def get_board_tensor(self):
         tensor = np.zeros((self.size, self.size, self.config.tiles.colors + self.config.tiles.patterns + 1))
         for r in range(self.size):
@@ -166,7 +170,6 @@ class CalicoEnv:
         """
         board_matrix = np.full((self.size, self.size), self.config.board.no_tile_value, dtype=int)
 
-        # Place objectives (negative IDs)
         for i, (row, col) in enumerate(self.config.board.objective_positions, start=1):
             board_matrix[row, col] = -i
 
@@ -215,7 +218,7 @@ class CalicoEnv:
         """
         state_parts = []
         # Append mode as integer (0 or 1)
-        state_parts.append(np.array([int(self.mode == "buying")], dtype=int))
+        state_parts.append(np.array([int(self.mode == ActionType.BUY)], dtype=int))
         # Player tiles
         state_parts.append(np.array(self.player_tiles, dtype=int))
         # Shop tiles
@@ -292,21 +295,3 @@ class CalicoEnv:
             s.append(str(self.board_matrix))
 
         return "\n".join(s)
-
-if __name__ == "__main__":
-    with open("../../../config/calico_settings.json", "r") as f:
-        config_data = json.load(f)
-
-    # 2. Parse into Pydantic model
-    config_game = GameSettings(**config_data)
-    env = CalicoEnv(config_game)
-    env.start_game()
-
-    env.fill_board_randomly()
-    print(env)
-
-    scoring = ScoringCalculator(config_game)
-
-    score = scoring.get_total_detailed_score(env.board_matrix,env.cat_tiles)
-
-    print(score)
