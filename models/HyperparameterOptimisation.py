@@ -14,7 +14,7 @@ BOARD_SIZE = 7
 PLAYER_HAND_SIZE = 3
 NR_OF_TILES_IN_SHOP = 3
 NO_TILE_VALUE = -1
-CHECKPOINT_FILENAME = "../external_solutions/best_calico_weights2.npz"
+CHECKPOINT_FILENAME = "../agents/test_calico_weights.npz"
 
 # Placeholder initial weights (these will be overwritten by the NN output)
 EVALUATION_CONFIG = {
