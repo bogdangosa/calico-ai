@@ -14,6 +14,12 @@ class FlatMonteCarloAgent:
         self.max_iterations = max_iterations
         self.scorer = scorer
 
+    def get_hyperparameters(self):
+        return {
+            "max_iterations": self.max_iterations,
+            "exp_c": self.exp_c,
+        }
+
     def random_rollout(self,env: CalicoEnv):
         rollout_env = copy.deepcopy(env)
         rollout_env.disable_history()

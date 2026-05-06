@@ -16,6 +16,12 @@ class MonteCarloTreeSearchAgent:
         self.max_iterations = max_iterations
         self.scorer = scorer
 
+    def get_hyperparameters(self):
+        return {
+            "max_iterations": self.max_iterations,
+            "exp_c": self.exp_c,
+        }
+
     def _select(self, node: MCTSNode) -> MCTSNode:
         """Walks down the tree using UCB until it finds a node that isn't fully expanded."""
         current_node = node

@@ -33,6 +33,7 @@ class EvaluationConfig(BaseModel):
 
 
 class GameSettings(BaseModel):
+    name:str = Field("")
     player_hand_size: int = 2
     nr_of_tiles_in_shop: int = 3
     max_players: int = 4

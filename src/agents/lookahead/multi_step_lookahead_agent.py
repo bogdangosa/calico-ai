@@ -11,6 +11,11 @@ class MultiStepLookaheadAgent:
         self.depth = depth
         self.scorer = scorer
 
+    def get_hyperparameters(self):
+        return {
+            "depth": self.depth,
+        }
+
     def select_action(self, env: CalicoEnv):
         if not env.history_manager:
             env.enable_history()
