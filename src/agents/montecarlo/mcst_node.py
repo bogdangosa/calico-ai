@@ -1,4 +1,5 @@
 import math
+from typing import Dict
 
 
 class MCTSNode:
@@ -32,3 +33,16 @@ class MCTSNode:
                 best_child = child
 
         return best_child
+
+class DeepMCTSNode:
+    def __init__(self, prior: float):
+        self.visit_count: int = 0
+        self.total_value: float = 0.0
+        self.prior: float = prior
+        self.children: Dict[int, 'DeepMCTSNode'] = {}
+
+    @property
+    def q_value(self) -> float:
+        if self.visit_count == 0:
+            return 0.0
+        return self.total_value / self.visit_count
