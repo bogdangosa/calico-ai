@@ -31,19 +31,6 @@ class CalicoEnv:
     def disable_history(self):
         self.history_manager = None
 
-    def get_board_tensor(self):
-        tensor = np.zeros((self.size, self.size, self.config.tiles.colors + self.config.tiles.patterns + 1))
-        for r in range(self.size):
-            for c in range(self.size):
-                val = self.board_matrix[r, c]
-                if val >= 0:
-                    tensor[r, c, val // self.config.tiles.patterns] = 1.0
-                    tensor[r, c, self.config.tiles.colors + (val % self.config.tiles.patterns)] = 1.0
-                elif val < 0 and val != self.config.board.no_tile_value:
-                    tensor[r, c, 12] = 1.0
-        return tensor
-
-
     def get_legal_actions(self)->list[CalicoAction]:
         legal_actions = []
         if self.mode == ActionType.PLACE:

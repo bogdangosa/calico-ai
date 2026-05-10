@@ -12,6 +12,12 @@ class TopKLookaheadAgent:
         self.k_factor = k_factor
         self.scorer = scorer
 
+    def get_hyperparameters(self):
+        return {
+            "depth": self.depth,
+            "k_factor": self.k_factor,
+        }
+
     def _get_pruned_actions(self, env: CalicoEnv, actions: list[CalicoAction]):
         scored_candidates = []
 

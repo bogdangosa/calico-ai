@@ -11,3 +11,4 @@ renderer = TableRenderer(config)
 ui = CalicoConsoleUI(env,renderer, scorer)
 
 ui.run()
+

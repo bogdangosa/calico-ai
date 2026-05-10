@@ -11,5 +11,6 @@ run_simulation(
     env=env,
     agent=agent,
     num_games=1000,
-    progress_interval=10
+    progress_interval=10,
+    save_to_dataset=True
 )

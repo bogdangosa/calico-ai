@@ -8,6 +8,9 @@ class OneStepLookaheadAgent:
         self.config = config
         self.scorer = scorer
 
+    def get_hyperparameters(self):
+        return {}
+
     def select_action(self, env: CalicoEnv):
         """
         Evaluates all legal actions by simulating them and picking the one
