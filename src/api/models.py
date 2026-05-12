@@ -25,3 +25,12 @@ class GameStateResponse(BaseModel):
     shop_tiles: List[int]
     board: List[List[int]]
     is_game_over: bool
+
+class GameSummary(BaseModel):
+    game_id: UUID
+    config_type: str
+    nr_of_players: int
+    is_game_over: bool
+
+class GamesListResponse(BaseModel):
+    games: List[GameSummary]

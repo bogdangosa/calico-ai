@@ -6,7 +6,8 @@ from src.api.models import (
     StartGameRequest, 
     StartGameResponse, 
     GameStateResponse, 
-    PerformActionRequest
+    PerformActionRequest,
+    GamesListResponse
 )
 from src.services.game_service import GameService
 from src.models.game_models import CalicoAction
@@ -26,6 +27,11 @@ async def start_game(request: StartGameRequest):
         return StartGameResponse(game_id=game_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/get-current-games", response_model=GamesListResponse)
+async def get_current_games():
+    games = game_service.get_all_games()
+    return GamesListResponse(games=games)
 
 @router.get("/get-game-state/{game_id}", response_model=GameStateResponse)
 async def get_game_state(game_id: UUID):

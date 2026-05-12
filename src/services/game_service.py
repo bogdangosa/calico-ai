@@ -6,6 +6,7 @@ from src.engine.scoring.scoring import ScoringCalculator
 from src.agents.random_agent import RandomAgent
 from src.agents.lookahead.one_step_lookahead_agent import OneStepLookaheadAgent
 from src.models.game_models import CalicoAction
+from src.api.models import GameSummary
 
 class GameService:
     def __init__(self):
@@ -45,6 +46,17 @@ class GameService:
                 agents.append(RandomAgent(game.settings))
         
         game.player_agents_list = agents
+
+    def get_all_games(self) -> List[GameSummary]:
+        return [
+            GameSummary(
+                game_id=g.game_id,
+                config_type=g.config_type,
+                nr_of_players=g.nr_of_players,
+                is_game_over=g.env.is_game_over()
+            )
+            for g in self.games.values()
+        ]
 
     def get_game_state(self, game_id: uuid.UUID) -> Dict:
         game = self._get_game_or_raise(game_id)
