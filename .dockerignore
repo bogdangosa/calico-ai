@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.git/
+.idea/
+outputs/logs/
+outputs/plots/
+agent_models/
+*.npz
+*.pth
+paper.pdf

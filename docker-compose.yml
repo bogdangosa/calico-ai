@@ -1,0 +1,46 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./agent_models:/app/agent_models
+      - ./config:/app/config
+    restart: unless-stopped
+    networks:
+      - calico-network
+
+  tensorboard:
+    build: .
+    volumes:
+      - ./outputs/logs:/app/outputs/logs
+    command: tensorboard --logdir=/app/outputs/logs --host=0.0.0.0 --port=6006
+    ports:
+      - "6006:6006"
+    networks:
+      - calico-network
+
+  training:
+    build: .
+    volumes:
+      - ./outputs/logs:/app/outputs/logs
+      - ./agent_models:/app/agent_models
+      - ./config:/app/config
+      - ./src:/app/src
+    # This service won't start automatically unless you call 'docker compose up training'
+    # or remove the 'profiles' key.
+    profiles: ["training"]
+    command: python3 -m src.training.train_q_learning_agent
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - calico-network
+
+networks:
+  calico-network:
+    driver: bridge
