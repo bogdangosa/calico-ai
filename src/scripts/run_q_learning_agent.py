@@ -1,5 +1,7 @@
 import os
 import torch
+
+from src.agents.q_learning.baseline_q_learning_agent import BaselineQLearningAgent
 from src.agents.q_learning.q_learning_agent import QLearningAgent
 from src.engine.simulator import run_simulation
 from src.engine.environments.calico_env import CalicoEnv
@@ -7,7 +9,7 @@ from src.utils.config import load_config
 from loguru import logger
 
 config_path = "../../config/micro_calico_settings.json"
-model_path = "../../agent_models/micro_calico/q_learning_agent_v1.0.pth"
+model_path = "../../agent_models/micro_calico/baseline_q_learning_agent_v1.1.pth"
 
 config = load_config(config_path)
 env = CalicoEnv(config)
@@ -15,12 +17,12 @@ env = CalicoEnv(config)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger.info(f"Running on device: {device}")
 
-agent = QLearningAgent(config, model_path=model_path, epsilon=0.0, device=device)
+agent = BaselineQLearningAgent(config, model_path=model_path, epsilon=0.0, device=device)
 
 run_simulation(
     env=env,
     agent=agent,
-    num_games=100,
+    num_games=1000,
     progress_interval=10,
     save_to_dataset=True
 )

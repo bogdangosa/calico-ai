@@ -25,7 +25,7 @@
     "evaluation": {
         "weight_final_score": 1,
         "weight_cat_potential": 1,
-        "weight_color_potential": 0.1,
+        "weight_color_potential": 1,
         "weight_objective_viability": 1
     }
 }
