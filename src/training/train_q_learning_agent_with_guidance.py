@@ -23,19 +23,19 @@ from src.utils.neural_network_tracker import NeuralTensorTracker
 
 GAMMA = 0.95
 BATCH_SIZE = 64
-LR = 0.0001
-REPLAY_CAPACITY = 10000
+LR = 0.00005
+REPLAY_CAPACITY = 20000
 TARGET_UPDATE_FREQ = 10
-EPSILON_START = 0.75
-EPSILON_END = 0.1
+EPSILON_START = 0.30
+EPSILON_END = 0.05
 NUM_EPISODES = 5000
 SAVE_FREQ = 500
 
-WARMUP_EPISODES = int(NUM_EPISODES * 0.20)
+WARMUP_EPISODES = int(NUM_EPISODES * 0.30)
 
 EPSILON_DECAY = math.exp(math.log(EPSILON_END / EPSILON_START) / (NUM_EPISODES - WARMUP_EPISODES))
 
-MODEL_VERSION = "v1.2"
+MODEL_VERSION = "v1.4"
 MODEL_SAVE_PATH = f"agent_models/micro_calico/baseline_q_learning_agent_{MODEL_VERSION}.pth"
 CURRENT_TIME = datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
 LOG_DIR = f"outputs/logs/q_learning_training/{MODEL_VERSION}-{CURRENT_TIME}"
@@ -43,7 +43,7 @@ LOG_DIR = f"outputs/logs/q_learning_training/{MODEL_VERSION}-{CURRENT_TIME}"
 LR_SCHEDULER_STEP = 2500
 LR_SCHEDULER_GAMMA = 0.5
 
-EVAL_NUM_GAMES = 20
+EVAL_NUM_GAMES = 30
 
 
 def evaluate_agent(env, agent, num_games=20):
@@ -101,6 +101,8 @@ def train():
 
     scores = []
     losses = []
+
+    best_eval_score = -float('inf')
 
     pbar = tqdm(range(NUM_EPISODES))
     for episode in pbar:
@@ -186,17 +188,18 @@ def train():
                 f"[{mode_desc}] Ep {episode} | Avg Score: {avg_score:.1f} | Loss: {avg_loss:.4f} | LR: {current_lr:.6f} | Eps: {agent.epsilon:.2f}")
 
         if episode % SAVE_FREQ == 0 or episode == NUM_EPISODES - 1:
-            os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
-            agent.model.save(MODEL_SAVE_PATH)
-
             logger.info(f"Evaluating agent at episode {episode}...")
             eval_score = evaluate_agent(env, agent, EVAL_NUM_GAMES)
             writer.add_scalar("Metrics/Evaluation_Score", eval_score, episode)
             logger.info(f"Evaluation Average Score: {eval_score:.2f}")
 
-    logger.info("Training complete.")
-    agent.model.save(MODEL_SAVE_PATH)
-    logger.info(f"Final model saved to {MODEL_SAVE_PATH}")
+            if eval_score > best_eval_score:
+                logger.info(f"New best score: {eval_score:.2f} (Previous: {best_eval_score:.2f}). Saving model.")
+                best_eval_score = eval_score
+                os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
+                agent.model.save(MODEL_SAVE_PATH)
+
+    logger.info(f"Training complete. Best model scored {best_eval_score:.2f} and is saved at {MODEL_SAVE_PATH}")
 
     tracker.close()
 
