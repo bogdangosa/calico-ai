@@ -14,7 +14,20 @@ dependencies = [
     "tensorboard>=2.13.0",
     "pandas>=2.0.0",
     "pyyaml>=6.0",
+    "matplotlib>=3.7.0",
+    "sqlalchemy>=2.0.50",
+    "dynaconf>=3.2.13",
+    "dotenv>=0.9.9",
+    "alembic>=1.18.4",
+    "asyncpg>=0.30.0",
+    "psycopg2-binary>=2.9.9",
+    "stable-baselines3>=2.8.0",
+    "sb3-contrib>=2.8.0",
+    "gymnasium>=1.2.3",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [build-system]
 requires = ["hatchling"]

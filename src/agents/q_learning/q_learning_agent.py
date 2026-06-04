@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import random
 from src.agents.agent_base import AgentBase
-from src.machine_learning.networks.q_network import QValueNetwork
+from src.machine_learning.networks.q_value_network import QValueNetwork
 from src.engine.environments.calico_encoder import CalicoEncoder
 from src.models.game_models import CalicoAction
 

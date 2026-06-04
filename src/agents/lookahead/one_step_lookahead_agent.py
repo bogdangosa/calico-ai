@@ -1,15 +1,13 @@
 import random
 
+from src.agents.agent_base import AgentBase
 from src.engine.scoring.scoring import ScoringCalculator
 from src.engine.environments.calico_env import CalicoEnv
 
-class OneStepLookaheadAgent:
+class OneStepLookaheadAgent(AgentBase):
     def __init__(self, scorer: ScoringCalculator, config):
-        self.config = config
+        super().__init__(config)
         self.scorer = scorer
-
-    def get_hyperparameters(self):
-        return {}
 
     def select_action(self, env: CalicoEnv):
         """

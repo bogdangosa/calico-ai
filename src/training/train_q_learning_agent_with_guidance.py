@@ -23,27 +23,29 @@ from src.utils.neural_network_tracker import NeuralTensorTracker
 
 GAMMA = 0.95
 BATCH_SIZE = 64
-LR = 0.00005
-REPLAY_CAPACITY = 20000
+LR = 0.0001
+REPLAY_CAPACITY = 300000
 TARGET_UPDATE_FREQ = 10
+
 EPSILON_START = 0.30
 EPSILON_END = 0.05
-NUM_EPISODES = 5000
-SAVE_FREQ = 500
-
-WARMUP_EPISODES = int(NUM_EPISODES * 0.30)
+NUM_EPISODES = 10000
+WARMUP_EPISODES = int(NUM_EPISODES * 0.15)
 
 EPSILON_DECAY = math.exp(math.log(EPSILON_END / EPSILON_START) / (NUM_EPISODES - WARMUP_EPISODES))
 
-MODEL_VERSION = "v1.4"
+SAVE_FREQ = 1000
+
+LR_SCHEDULER_STEP = 7500
+LR_SCHEDULER_GAMMA = 0.5
+
+EVAL_NUM_GAMES = 50
+
+MODEL_VERSION = "v1.7"
 MODEL_SAVE_PATH = f"agent_models/micro_calico/baseline_q_learning_agent_{MODEL_VERSION}.pth"
 CURRENT_TIME = datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
 LOG_DIR = f"outputs/logs/q_learning_training/{MODEL_VERSION}-{CURRENT_TIME}"
 
-LR_SCHEDULER_STEP = 2500
-LR_SCHEDULER_GAMMA = 0.5
-
-EVAL_NUM_GAMES = 30
 
 
 def evaluate_agent(env, agent, num_games=20):
@@ -77,7 +79,7 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Training on device: {device}")
 
-    agent = BaselineQLearningAgent(config, device=device)
+    agent = QLearningAgent(config, device=device)
     agent.epsilon = EPSILON_START
 
     guidance_agent = MultiStepLookaheadAgent(scorer=scorer, config=config,depth=2)
@@ -110,7 +112,7 @@ def train():
             decay_step = episode - WARMUP_EPISODES
             agent.epsilon = max(EPSILON_END, EPSILON_START * (EPSILON_DECAY ** decay_step))
         else:
-            agent.epsilon = 1.0
+            agent.epsilon = EPSILON_START
 
         env.start_game()
         state_tensor = agent.get_state_tensor(env)
@@ -131,7 +133,7 @@ def train():
             next_state_tensor = agent.get_state_tensor(env)
 
             current_score = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
-            reward = (current_score - prev_score)
+            reward = (current_score - prev_score) * 0.1
             prev_score = current_score
 
             done = env.is_game_over()

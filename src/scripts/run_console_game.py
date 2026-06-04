@@ -4,7 +4,7 @@ from src.ui.console_ui import CalicoConsoleUI
 from src.ui.table_renderer import TableRenderer
 from src.utils.config import load_config
 
-config = load_config("../../config/micro_calico_settings.json")
+config = load_config("../../config/mini_calico_settings.json")
 env = CalicoEnv(config)
 scorer = ScoringCalculator(config)
 renderer = TableRenderer(config)

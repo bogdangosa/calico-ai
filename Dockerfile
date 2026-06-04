@@ -29,6 +29,8 @@ ENV PYTHONPATH="/app"
 # Copy the source code and configuration
 COPY src/ ./src/
 COPY config/ ./config/
+COPY migrations/ ./migrations/
+COPY alembic.ini .
 
 # Create directories for outputs and models
 RUN mkdir -p outputs/logs agent_models
@@ -38,4 +40,4 @@ EXPOSE 8000
 
 # Default command: Start the API
 # For training, this can be overridden in docker-compose or via CLI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

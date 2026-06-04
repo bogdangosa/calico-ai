@@ -130,7 +130,7 @@ class CalicoEnv:
 
     def initialize_cat_tiles(self):
         cat_tiles = np.arange(1, self.config.tiles.cat_types + 1)
-        np.random.shuffle(cat_tiles)  # shuffles in place
+        #np.random.shuffle(cat_tiles)  # shuffles in place
         return cat_tiles
 
     def generate_random_tile(self):
@@ -231,7 +231,7 @@ class CalicoEnv:
         idx = 0
 
         # --- Mode ---
-        self.mode = "buying" if flat_state[idx] == 1 else "placing"
+        self.mode = ActionType.BUY if flat_state[idx] == 1 else ActionType.PLACE
         idx += 1
 
         # --- Player tiles ---

@@ -3,14 +3,14 @@ from src.engine.environments.calico_env import CalicoEnv
 from src.agents.random_agent import RandomAgent
 from src.utils.config import load_config
 
-config = load_config("../../config/micro_calico_settings.json")
+config = load_config("../../config/mini_calico_settings.json")
 env = CalicoEnv(config)
 agent = RandomAgent(config)
 
 run_simulation(
     env=env,
     agent=agent,
-    num_games=1000,
-    progress_interval=10,
-    save_to_dataset=True
+    num_games=10000,
+    progress_interval=1000,
+    save_to_dataset=False
 )

@@ -4,7 +4,8 @@ import torch.nn.functional as F
 
 
 class BaselineQNetwork(nn.Module):
-    def __init__(self, input_channels: int = 13, board_size: int = 7):
+
+    def __init__(self, input_channels: int = 13, board_size: int = 7, action_space_size: int = 11) -> None:
         super().__init__()
 
         self.conv = nn.Conv2d(input_channels, 32, kernel_size=3, padding=1)
@@ -14,14 +15,14 @@ class BaselineQNetwork(nn.Module):
         self.fc1 = nn.Linear(self.flattened_size, 128)
         self.fc1_act = nn.LeakyReLU(0.01)
 
-        self.fc2 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(128, action_space_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv_act(self.conv(x))
         x = x.reshape(x.size(0), -1)
         x = self.fc1_act(self.fc1(x))
-        value = self.fc2(x)
-        return value
+        q_values = self.fc2(x)
+        return q_values
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)

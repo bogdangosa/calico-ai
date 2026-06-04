@@ -1,13 +1,14 @@
 import random
+from src.agents.agent_base import AgentBase
 from src.engine.scoring.scoring import ScoringCalculator
 from src.engine.environments.calico_env import CalicoEnv
 from src.models.game_models import CalicoAction
 from src.utils.timing import time_it
 
 
-class TopKLookaheadAgent:
+class TopKLookaheadAgent(AgentBase):
     def __init__(self, scorer: ScoringCalculator, config, depth=2, k_factor=5):
-        self.config = config
+        super().__init__(config)
         self.depth = depth
         self.k_factor = k_factor
         self.scorer = scorer

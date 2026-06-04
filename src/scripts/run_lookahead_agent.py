@@ -8,15 +8,15 @@ from src.engine.simulator import run_simulation
 from src.engine.environments.calico_env import CalicoEnv
 from src.utils.config import load_config
 
-config = load_config("../../config/micro_calico_settings.json")
+config = load_config("../../config/micro_calico_settings_v2.json")
 env = CalicoEnv(config)
 scorer = PotentialScoringCalculator(config)
-agent = MultiStepLookaheadAgent(scorer,config,depth=4)
+agent = MultiStepLookaheadAgent(scorer,config,depth=3)
 
 run_simulation(
     env=env,
     agent=agent,
-    num_games=1000,
+    num_games=100,
     progress_interval=10,
-    save_to_dataset=True
+    save_to_dataset=False
 )

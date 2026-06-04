@@ -10,6 +10,7 @@ class StartGameRequest(BaseModel):
 
 class StartGameResponse(BaseModel):
     game_id: UUID
+    game_code: str
 
 class PerformActionRequest(BaseModel):
     action_type: ActionType
@@ -19,18 +20,38 @@ class PerformActionRequest(BaseModel):
 
 class GameStateResponse(BaseModel):
     game_id: str
+    game_code: str
     config_type: str
     mode: str
     player_tiles: List[int]
+    cat_tiles: List[int]
     shop_tiles: List[int]
     board: List[List[int]]
     is_game_over: bool
+    score: Any
 
 class GameSummary(BaseModel):
     game_id: UUID
+    game_code: str
     config_type: str
     nr_of_players: int
     is_game_over: bool
 
 class GamesListResponse(BaseModel):
     games: List[GameSummary]
+
+# Player Models
+class PlayerBase(BaseModel):
+    player_name: str
+    player_type: str = Field(..., pattern="^(ai|person)$")
+    order_index: Optional[int] = None
+
+class PlayerCreate(PlayerBase):
+    pass
+
+class PlayerResponse(PlayerBase):
+    id: UUID
+    game_id: UUID
+
+    class Config:
+        from_attributes = True

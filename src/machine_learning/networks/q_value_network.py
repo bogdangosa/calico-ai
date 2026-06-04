@@ -8,7 +8,7 @@ class QValueNetwork(nn.Module):
     A convolutional neural network that estimates the value (Q-value) of a board state.
     Designed to work with the CalicoEncoder output.
     """
-    def __init__(self, input_channels: int = 13, board_size: int = 7, num_blocks: int = 3, hidden_channels: int = 64):
+    def __init__(self, input_channels: int = 13, board_size: int = 7, num_blocks: int = 2, hidden_channels: int = 64):
         super().__init__()
         self.board_size = board_size
 
@@ -33,15 +33,15 @@ class QValueNetwork(nn.Module):
         Returns:
             A tensor of shape (batch_size, 1) representing the estimated value.
         """
-        out = F.relu(self.bn_in(self.conv_in(x)))
+        out = F.leaky_relu(self.bn_in(self.conv_in(x)), negative_slope=0.01)
 
         for block in self.res_blocks:
             out = block(out)
 
         out = F.relu(self.value_bn(self.value_conv(out)))
-        out = out.view(out.size(0), -1)
-        
-        out = F.relu(self.fc1(out))
+        out = out.reshape(out.size(0), -1)
+
+        out = F.leaky_relu(self.fc1(out), negative_slope=0.01)
         value = self.fc2(out)
         
         return value
