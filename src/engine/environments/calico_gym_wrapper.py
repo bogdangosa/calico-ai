@@ -6,7 +6,9 @@ from typing import Optional, Dict, Any, Tuple
 from src.engine.environments.calico_env import CalicoEnv
 from src.engine.environments.action_mapper import ActionMapper
 from src.engine.environments.calico_encoder import CalicoEncoder
+from src.engine.scoring.potential_scoring import PotentialScoringCalculator
 from src.engine.scoring.scoring import ScoringCalculator
+
 from src.models.game_models import CalicoAction, ActionType
 
 class CalicoGymWrapper(gym.Env):
@@ -19,7 +21,8 @@ class CalicoGymWrapper(gym.Env):
         super().__init__()
         self.config = config
         self.env = CalicoEnv(config)
-        self.scorer = ScoringCalculator(config)
+        self.reward_scorer = PotentialScoringCalculator(config)
+        self.actual_scorer = ScoringCalculator(config)
         
         # Initialize mapper and encoder
         self.mapper = ActionMapper(
@@ -66,8 +69,8 @@ class CalicoGymWrapper(gym.Env):
                 dtype=np.int8
             )
         })
-        
-        self.last_score = 0
+
+        self.last_heuristic_score = 0.0
 
     def get_flat_features(self) -> np.ndarray:
         mode = np.array([int(self.env.mode == ActionType.BUY)], dtype=np.int32)
@@ -105,7 +108,10 @@ class CalicoGymWrapper(gym.Env):
             np.random.seed(seed)
             
         self.env.start_game(seed=seed if seed is not None else 41)
-        self.last_score = 0
+
+        self.last_heuristic_score = self.reward_scorer.evaluate_move(
+            self.env.board_matrix, self.env.cat_tiles
+        )
         
         observation = {
             "board": self.encoder.encode(self.env),
@@ -123,9 +129,11 @@ class CalicoGymWrapper(gym.Env):
             self.env.perform_action(action)
         
         # Calculate reward
-        current_score = self.scorer.evaluate_move(self.env.board_matrix, self.env.cat_tiles)
-        reward = float(current_score - self.last_score)
-        self.last_score = current_score
+        current_heuristic = self.reward_scorer.evaluate_move(
+            self.env.board_matrix, self.env.cat_tiles
+        )
+        reward = float(current_heuristic - self.last_heuristic_score)
+        self.last_heuristic_score = current_heuristic
         
         terminated = self.env.is_game_over()
         truncated = False
@@ -135,8 +143,11 @@ class CalicoGymWrapper(gym.Env):
             "flat_features": self.get_flat_features(),
             "action_mask": self.action_masks()
         }
-        
-        info = {"score": current_score}
+
+        actual_score = self.actual_scorer.evaluate_move(
+            self.env.board_matrix, self.env.cat_tiles
+        )
+        info = {"score": actual_score}
         
         return observation, reward, terminated, truncated, info
 
