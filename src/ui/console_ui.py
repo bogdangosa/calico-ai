@@ -90,5 +90,8 @@ class CalicoConsoleUI:
                 print("\nBoard is full! Game Over.")
                 self.game_over = True
 
-        total, *details = self.scorer.get_total_detailed_score(self.env.board_matrix, self.env.cat_tiles)
+        total, color, obj, cat  = self.scorer.get_total_detailed_score(self.env.board_matrix, self.env.cat_tiles)
         print(f"Final Score: {total}")
+        print(
+            f"Subscore: (color) {color:.2f} | (objective) {obj:.2f} | (cat) {cat:.2f}")
+        print(f"{total},{color},{obj},{cat},bogdan")

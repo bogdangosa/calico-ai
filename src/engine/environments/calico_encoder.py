@@ -7,6 +7,23 @@ class CalicoEncoder:
         self.colors = config.tiles.colors
         self.patterns = config.tiles.patterns
         self.total_feature_layers = self.colors + self.patterns + 1
+        
+        # Calculate flat features size
+        # mode (1) + player_hand (hand_size) + shop (shop_size) + cat_tiles (cat_types)
+        self.flat_features_size = 1 + config.player_hand_size + config.nr_of_tiles_in_shop + config.tiles.cat_types
+
+    def get_flat_features(self, env) -> np.ndarray:
+        from src.models.game_models import ActionType
+        mode = np.array([int(env.mode == ActionType.BUY)], dtype=np.float32)
+        player_tiles = np.array(env.player_tiles, dtype=np.float32)
+        shop_tiles = np.array(env.shop_tiles, dtype=np.float32)
+        
+        if isinstance(env.cat_tiles, np.ndarray):
+            cat_tiles = env.cat_tiles.flatten().astype(np.float32)
+        else:
+            cat_tiles = np.array(env.cat_tiles, dtype=np.float32).flatten()
+            
+        return np.concatenate([mode, player_tiles, shop_tiles, cat_tiles])
 
     def encode(self, env):
         board = env.board_matrix

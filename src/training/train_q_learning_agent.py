@@ -19,28 +19,33 @@ from src.training.replay_buffer_actions import ReplayBufferActions
 from src.utils.config import load_config
 from src.utils.neural_network_tracker import NeuralTensorTracker
 
-GAMMA = 0.95
+GAMMA = 0.98
 BATCH_SIZE = 64
 LR = 0.0001
 REPLAY_CAPACITY = 50000
 TARGET_UPDATE_FREQ = 10
 EPSILON_START = 0.75
 EPSILON_END = 0.1
-NUM_EPISODES = 5000
-SAVE_FREQ = 500
+NUM_EPISODES = 100000
+SAVE_FREQ = 10000
+
+# Logging Configuration
+METRICS_LOG_FREQ = 100  # How often to log scalars (loss, score, etc.)
+WEIGHTS_LOG_FREQ = 1000 # How often to log weight distributions
+ACTIVATIONS_LOG_FREQ = 1000 # How often to log activation distributions
+ENABLE_TENSOR_TRACKER = True # Toggle to completely disable the tracker
 
 EPSILON_DECAY = math.exp(math.log(EPSILON_END / EPSILON_START) / NUM_EPISODES)
 
-MODEL_VERSION = "v2.0"
+MODEL_VERSION = "v3.0"
 MODEL_SAVE_PATH = f"../../agent_models/micro_calico_v2/baseline_q_learning_agent_{MODEL_VERSION}.pth"
 CURRENT_TIME = datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
-LOG_DIR = f"../../outputs/logs/q_learning_training/{MODEL_VERSION}-{CURRENT_TIME}"
+LOG_DIR = f"../../outputs/logs/q_learning_training_v3/{MODEL_VERSION}-{CURRENT_TIME}"
 
-LR_SCHEDULER_STEP = 2500
+LR_SCHEDULER_STEP = 50000
 LR_SCHEDULER_GAMMA = 0.5
 
 EVAL_NUM_GAMES = 20
-
 
 def evaluate_agent(env, agent, num_games=20):
     old_epsilon = agent.epsilon
@@ -78,7 +83,8 @@ def train():
 
     target_net = type(agent.model)(
         input_channels=agent.encoder.total_feature_layers,
-        board_size=config.board.size
+        board_size=config.board.size,
+        flat_features_size=agent.encoder.flat_features_size
     ).to(device)
     target_net.load_state_dict(agent.model.state_dict())
     target_net.eval()
@@ -87,9 +93,15 @@ def train():
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=LR_SCHEDULER_STEP, gamma=LR_SCHEDULER_GAMMA)
     criterion = nn.SmoothL1Loss()
 
-    tracker = NeuralTensorTracker()
-    tracker.writer = writer
-    tracker.attach(agent.model)
+    tracker = None
+    if ENABLE_TENSOR_TRACKER:
+        tracker = NeuralTensorTracker(
+            log_dir=LOG_DIR,
+            activations_log_freq=ACTIVATIONS_LOG_FREQ,
+            weights_log_freq=WEIGHTS_LOG_FREQ
+        )
+        tracker.writer = writer
+        tracker.attach(agent.model)
 
     memory = ReplayBufferActions(REPLAY_CAPACITY)
 
@@ -99,7 +111,7 @@ def train():
     pbar = tqdm(range(NUM_EPISODES))
     for episode in pbar:
         env.start_game()
-        state_tensor = agent.get_state_tensor(env)
+        state_tensor, flat_tensor = agent.get_state_tensors(env)
 
         prev_score = 0
 
@@ -111,7 +123,7 @@ def train():
             action_idx = agent._get_action_index(action)
 
             env.perform_action(action)
-            next_state_tensor = agent.get_state_tensor(env)
+            next_state_tensor, next_flat_tensor = agent.get_state_tensors(env)
             next_mask = agent.get_action_mask(env).cpu().numpy()
 
             current_score = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
@@ -122,29 +134,34 @@ def train():
 
             memory.push(
                 state_tensor.squeeze(0).cpu().numpy(),
+                flat_tensor.squeeze(0).cpu().numpy(),
                 action_idx,
                 reward,
                 next_state_tensor.squeeze(0).cpu().numpy(),
+                next_flat_tensor.squeeze(0).cpu().numpy(),
                 next_mask,
                 done
             )
 
             state_tensor = next_state_tensor
+            flat_tensor = next_flat_tensor
 
             if len(memory) > BATCH_SIZE:
-                b_state, b_action, b_reward, b_next_state, b_next_mask, b_done = memory.sample(BATCH_SIZE)
+                b_state, b_flat, b_action, b_reward, b_next_state, b_next_flat, b_next_mask, b_done = memory.sample(BATCH_SIZE)
 
                 b_state = torch.from_numpy(b_state).to(device).float()
+                b_flat = torch.from_numpy(b_flat).to(device).float()
                 b_action = torch.from_numpy(b_action).to(device).long().unsqueeze(1)
                 b_reward = torch.from_numpy(b_reward).to(device).float().unsqueeze(1)
                 b_next_state = torch.from_numpy(b_next_state).to(device).float()
+                b_next_flat = torch.from_numpy(b_next_flat).to(device).float()
                 b_next_mask = torch.from_numpy(b_next_mask).to(device)
                 b_done = torch.from_numpy(b_done).to(device).float().unsqueeze(1)
 
-                current_q = agent.model(b_state).gather(1, b_action)
+                current_q = agent.model(b_state, b_flat).gather(1, b_action)
 
                 with torch.no_grad():
-                    next_q_values = target_net(b_next_state)
+                    next_q_values = target_net(b_next_state, b_next_flat)
                     # Mask invalid actions in the next state
                     next_q_values[~b_next_mask] = float('-inf')
                     max_next_q = next_q_values.max(1)[0].unsqueeze(1)
@@ -166,9 +183,9 @@ def train():
 
         scores.append(prev_score)
 
-        if episode % 10 == 0:
-            avg_score = np.mean(scores[-10:])
-            avg_loss = np.mean(losses[-50:]) if losses else 0
+        if episode % METRICS_LOG_FREQ == 0:
+            avg_score = np.mean(scores[-METRICS_LOG_FREQ:]) if scores else 0
+            avg_loss = np.mean(losses[-METRICS_LOG_FREQ*5:]) if losses else 0
             current_lr = optimizer.param_groups[0]['lr']
 
             writer.add_scalar("Metrics/Average_Score", avg_score, episode)
@@ -176,7 +193,8 @@ def train():
             writer.add_scalar("Hyperparameters/Epsilon", agent.epsilon, episode)
             writer.add_scalar("Hyperparameters/Learning_Rate", current_lr, episode)
 
-            tracker.log_weights(agent.model, episode)
+            if tracker:
+                tracker.log_weights(agent.model, episode)
 
             pbar.set_description(
                 f"Ep {episode} | Avg Score: {avg_score:.1f} | Loss: {avg_loss:.4f} | LR: {current_lr:.6f} | Eps: {agent.epsilon:.2f}")
@@ -195,7 +213,8 @@ def train():
     agent.model.save(MODEL_SAVE_PATH)
     logger.info(f"Final model saved to {MODEL_SAVE_PATH}")
 
-    tracker.close()
+    if tracker:
+        tracker.close()
 
 
 if __name__ == "__main__":

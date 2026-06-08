@@ -129,7 +129,7 @@ class CalicoEnv:
         return [self.generate_random_tile() for _ in range(self.config.player_hand_size)]
 
     def initialize_cat_tiles(self):
-        cat_tiles = np.arange(1, self.config.tiles.cat_types + 1)
+        cat_tiles = np.arange(0, self.config.tiles.cat_types)
         #np.random.shuffle(cat_tiles)  # shuffles in place
         return cat_tiles
 

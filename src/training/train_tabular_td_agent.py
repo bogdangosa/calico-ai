@@ -1,33 +1,39 @@
+from datetime import datetime
 import os
 import math
 import numpy as np
 from tqdm import tqdm
 from loguru import logger
+from torch.utils.tensorboard import SummaryWriter
 
 from src.agents.temporal_difference.tabular_td_agent import TabularTDAgent
 from src.engine.environments.calico_env import CalicoEnv
 from src.engine.scoring.scoring import ScoringCalculator
 from src.utils.config import load_config
 
-# Hyperparameters
-NUM_EPISODES = 300000
+# Hyperparameters aligned with rollout training
+NUM_EPISODES = 500000
 EPSILON_START = 1.0
 EPSILON_END = 0.1
-SAVE_FREQ = 1000
-MODEL_VERSION = "v1.3"
-MODEL_SAVE_PATH = f"../../agent_models/micro_calico_v2/tabular_v_table_{MODEL_VERSION}.pkl"
+SAVE_FREQ = 10000
+MODEL_VERSION = "v1.1"
+MODEL_SAVE_PATH = f"../../agent_models/micro_calico_v2/tabular_v_table_simple_{MODEL_VERSION}.pkl"
+CURRENT_TIME = datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
+LOG_DIR = f"../../outputs/logs/tabular_td_training_v2/simple-{MODEL_VERSION}-{CURRENT_TIME}"
 
 EPSILON_DECAY = math.exp(math.log(EPSILON_END / EPSILON_START) / NUM_EPISODES)
 
 def train():
     config = load_config("../../config/micro_calico_settings_v2.json")
+    writer = SummaryWriter(log_dir=LOG_DIR)
+    
     env = CalicoEnv(config)
     scorer = ScoringCalculator(config)
     
     agent = TabularTDAgent(
         config, 
-        learning_rate=0.1, 
-        discount_factor=0.95, 
+        learning_rate=0.2, 
+        discount_factor=1.0, 
         epsilon=EPSILON_START
     )
     
@@ -72,8 +78,12 @@ def train():
         scores.append(prev_score)
         
         # Periodic Logging and Saving
-        if episode % 100 == 0:
+        if episode % 1000 == 0:
             avg_score = np.mean(scores[-100:])
+            writer.add_scalar("Metrics/Average_Score", avg_score, episode)
+            writer.add_scalar("Hyperparameters/Epsilon", agent.epsilon, episode)
+            writer.add_scalar("Metrics/Table_Size", len(agent.v_table), episode)
+            
             pbar.set_description(f"Ep {episode} | Avg Score: {avg_score:.2f} | Table Size: {len(agent.v_table)} | Eps: {agent.epsilon:.2f}")
             
         if episode % SAVE_FREQ == 0 and episode > 0:
@@ -84,6 +94,7 @@ def train():
     agent.save(MODEL_SAVE_PATH)
     logger.info(f"Training complete. Final V-table size: {len(agent.v_table)}")
     logger.info(f"Final model saved to {MODEL_SAVE_PATH}")
+    writer.close()
 
 if __name__ == "__main__":
     train()

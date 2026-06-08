@@ -8,8 +8,8 @@ from src.engine.environments.calico_env import CalicoEnv
 from src.utils.config import load_config
 from loguru import logger
 
-config_path = "../../config/micro_calico_settings.json"
-model_path = "../../agent_models/micro_calico/baseline_q_learning_agent_v1.7.pth"
+config_path = "../../config/micro_calico_settings_v2.json"
+model_path = "../../agent_models/micro_calico_v2/baseline_q_learning_agent_v3.0.pth"
 
 config = load_config(config_path)
 env = CalicoEnv(config)

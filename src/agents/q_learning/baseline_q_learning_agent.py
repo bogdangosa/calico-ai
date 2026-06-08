@@ -15,7 +15,8 @@ class BaselineQLearningAgent(AgentBase):
         self.device = torch.device(device)
         self.model = BaselineQNetwork(
             input_channels=self.encoder.total_feature_layers,
-            board_size=config.board.size
+            board_size=config.board.size,
+            flat_features_size=self.encoder.flat_features_size
         ).to(self.device)
 
         if model_path:
@@ -27,21 +28,21 @@ class BaselineQLearningAgent(AgentBase):
     def _get_action_index(self, action: CalicoAction) -> int:
         inner_size = self.config.board.size - 2
         num_place_actions = self.config.player_hand_size * (inner_size ** 2)
-        
+
         if action.action_type == ActionType.BUY:
             return num_place_actions + action.tile_index
 
         inner_row = action.row - 1
         inner_col = action.col - 1
         slot_index = inner_row * inner_size + inner_col
-        
+
         return action.tile_index * (inner_size ** 2) + slot_index
 
     def get_action_mask(self, env) -> torch.Tensor:
         inner_size = self.config.board.size - 2
         num_place_actions = self.config.player_hand_size * (inner_size ** 2)
         total_actions = num_place_actions + self.config.nr_of_tiles_in_shop
-        
+
         mask = torch.zeros(total_actions, dtype=torch.bool)
         legal_actions = env.get_legal_actions()
         for action in legal_actions:
@@ -60,10 +61,10 @@ class BaselineQLearningAgent(AgentBase):
         return self._get_best_action(env, legal_actions)
 
     def _get_best_action(self, env, legal_actions: List[CalicoAction]) -> CalicoAction:
-        state_tensor = self.get_state_tensor(env)
+        board_tensor, flat_tensor = self.get_state_tensors(env)
 
         with torch.no_grad():
-            q_values = self.model(state_tensor).squeeze(0)
+            q_values = self.model(board_tensor, flat_tensor).squeeze(0)
 
         mask = torch.full_like(q_values, float('-inf'))
         action_mapping = {}
@@ -78,12 +79,18 @@ class BaselineQLearningAgent(AgentBase):
 
         return action_mapping[best_idx]
 
-    def get_state_tensor(self, env):
+    def get_state_tensors(self, env):
+        # Board tensor
         encoded = self.encoder.encode(env)
         encoded = np.transpose(encoded, (2, 0, 1))
-        tensor = torch.from_numpy(encoded).unsqueeze(0).to(self.device).float()
-        return tensor
+        board_tensor = torch.from_numpy(encoded).unsqueeze(0).to(self.device).float()
 
-    def predict_q_values(self, state_tensor):
+        # Flat features tensor
+        flat_features = self.encoder.get_flat_features(env)
+        flat_tensor = torch.from_numpy(flat_features).unsqueeze(0).to(self.device).float()
+
+        return board_tensor, flat_tensor
+
+    def predict_q_values(self, board_tensor, flat_tensor):
         with torch.no_grad():
-            return self.model(state_tensor)
+            return self.model(board_tensor, flat_tensor)

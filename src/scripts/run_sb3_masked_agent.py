@@ -9,7 +9,7 @@ from src.engine.simulator import run_simulation
 
 # Configuration
 CONFIG_PATH = "../../config/calico_settings.json"
-MODEL_PATH = "../../agent_models/full_calico/sb3_masked_ppo/sb3_calico_ppo_30mil_v1.1.zip"
+MODEL_PATH = "../../agent_models/full_calico/sb3_masked_ppo/sb3_calico_ppo_60mil_v1.2.zip"
 NUM_GAMES = 1000
 
 def run_evaluation():
