@@ -59,14 +59,21 @@ def run_simulation(env, agent, num_games=1000, progress_interval=100,plot_score_
 
     duration = time.perf_counter() - start_time
     total_scores = [g["total_score"] for g in game_data]
+    cat_scores = [g["cat_score"] for g in game_data]
+    color_scores = [g["color_score"] for g in game_data]
+    objective_scores = [g["objective_score"] for g in game_data]
 
     average_score = np.mean(total_scores)
+    average_cat_score = np.mean(cat_scores)
+    average_color_score = np.mean(color_scores)
+    average_objective_score = np.mean(objective_scores)
     max_score = np.max(total_scores)
     avg_ms_per_game = (duration / num_games) * 1000
 
     logger.info("\n" + "=" * 30)
     logger.info("SIMULATION COMPLETE")
     logger.info(f"Average Score: {average_score:.2f}")
+    logger.info(f"Average Subscore: (color) {average_color_score:.2f} | (objective) {average_objective_score:.2f} | (cat) {average_cat_score:.2f}")
     logger.info(f"Highest Score: {max_score}")
     logger.info(f"Total Time:    {duration:.4f}s")
     logger.info(f"Avg Time/Game: {avg_ms_per_game:.2f}ms")

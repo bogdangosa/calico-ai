@@ -9,7 +9,7 @@ from src.engine.simulator import run_simulation
 
 # Configuration
 CONFIG_PATH = "../../config/calico_settings.json"
-MODEL_PATH = "../../agent_models/full_calico/sb3_masked_ppo_v2/sb3_mini_calico_ppo_24000000_steps.zip"
+MODEL_PATH = "../../agent_models/full_calico/sb3_masked_ppo/sb3_calico_ppo_30mil_v1.1.zip"
 NUM_GAMES = 1000
 
 def run_evaluation():
@@ -36,7 +36,7 @@ def run_evaluation():
         agent=agent,
         num_games=NUM_GAMES,
         progress_interval=100,
-        save_to_dataset=True
+        save_to_dataset=False
     )
     
     logger.info(f"Evaluation complete.")

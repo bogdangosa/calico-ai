@@ -109,7 +109,7 @@ class CalicoGymWrapper(gym.Env):
             
         self.env.start_game(seed=seed if seed is not None else 41)
 
-        self.last_heuristic_score = self.reward_scorer.evaluate_move(
+        self.last_heuristic_score = self.actual_scorer.evaluate_move(
             self.env.board_matrix, self.env.cat_tiles
         )
         
@@ -129,7 +129,7 @@ class CalicoGymWrapper(gym.Env):
             self.env.perform_action(action)
         
         # Calculate reward
-        current_heuristic = self.reward_scorer.evaluate_move(
+        current_heuristic = self.actual_scorer.evaluate_move(
             self.env.board_matrix, self.env.cat_tiles
         )
         reward = float(current_heuristic - self.last_heuristic_score)

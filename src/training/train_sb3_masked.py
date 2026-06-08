@@ -3,17 +3,27 @@ from datetime import datetime
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.maskable.utils import get_action_masks
 from sb3_contrib.common.wrappers import ActionMasker
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 from loguru import logger
 
 from src.engine.environments.calico_gym_wrapper import CalicoGymWrapper
 from src.utils.config import load_config
 
-# Configuration for MINI CALICO (5x5 Board)
+# Configuration for FULL CALICO (7x7 Board)
 CONFIG_PATH = "../../config/calico_settings.json"
-TOTAL_TIMESTEPS = 50000000  # 15 Million steps for exhaustive learning
-MODEL_SAVE_PATH = "../../agent_models/full_calico/sb3_masked_ppo_v2"
-LOG_DIR = f"../../outputs/logs/sb3_training/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+TOTAL_TIMESTEPS = 20000000  # Another 11 Million steps
+MODEL_SAVE_PATH = "../../agent_models/full_calico/sb3_masked_ppo_v3.1"
+LOAD_MODEL_PATH = "../../agent_models/full_calico/sb3_masked_ppo/sb3_calico_ppo_39mil_v1.2.zip"
+LOG_DIR = f"../../outputs/logs/sb3_training_full/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+class ActualScoreCallback(BaseCallback):
+    def _on_step(self) -> bool:
+        if self.locals.get("dones", [False])[0]:
+            final_info = self.locals["infos"][0]
+            if "score" in final_info:
+                self.logger.record("metrics/actual_calico_score", final_info["score"])
+        return True
+
 
 def mask_fn(env: CalicoGymWrapper) -> bytes:
     """Standard mask function for ActionMasker."""
@@ -26,45 +36,44 @@ def train():
         if os.path.exists(alt_path):
             config = load_config(alt_path)
         else:
-            raise FileNotFoundError(f"Could not find config at {CONFIG_PATH}")
+            # Try absolute path or relative to project root
+            # In some execution contexts, paths might differ
+            config = load_config("config/calico_settings.json")
     else:
         config = load_config(CONFIG_PATH)
         
     raw_env = CalicoGymWrapper(config)
     env = ActionMasker(raw_env, mask_fn)
     
-    # 3. Initialize the MaskablePPO model
-    # Note: Added ent_coef=0.01 to encourage longer exploration on the smaller board
-    model = MaskablePPO(
-        "MultiInputPolicy", 
-        env, 
-        verbose=1, 
+    # 3. Load or Initialize the MaskablePPO model
+    logger.info(f"Loading existing model from {LOAD_MODEL_PATH}...")
+    model = MaskablePPO.load(
+        LOAD_MODEL_PATH, 
+        env=env, 
         tensorboard_log=LOG_DIR,
-        learning_rate=1e-4,
-        gamma=0.98,
-        batch_size=256,
-        n_steps=2048,
-        ent_coef=0.01 
     )
     
     # 4. Setup callbacks
     checkpoint_callback = CheckpointCallback(
-        save_freq=1000000, # Save every 1M steps (~15 mins at 1300 FPS)
+        save_freq=1000000, # Save every 1M steps
         save_path=MODEL_SAVE_PATH,
-        name_prefix="sb3_mini_calico_ppo"
+        name_prefix="sb3_full_calico_ppo_30mil_checkpoint"
     )
-    
+
+    score_logger = ActualScoreCallback()
+
     # 5. Train the model
-    logger.info(f"Starting SB3 Mini Calico training for {TOTAL_TIMESTEPS} timesteps...")
+    logger.info(f"Starting SB3 Full Calico training for another {TOTAL_TIMESTEPS} timesteps...")
     model.learn(
         total_timesteps=TOTAL_TIMESTEPS,
-        callback=checkpoint_callback,
-        progress_bar=False 
+        callback=[checkpoint_callback, score_logger],
+        progress_bar=False,
+        reset_num_timesteps=False # Continue from where we left off
     )
     
     # 6. Save final model
     os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
-    final_path = os.path.join(MODEL_SAVE_PATH, "final_model")
+    final_path = os.path.join(MODEL_SAVE_PATH, "30mil")
     model.save(final_path)
     logger.info(f"Training complete. Model saved to {final_path}")
     
@@ -86,7 +95,7 @@ def train():
             logger.info(f"Game {games_played} finished. Score: {info['score']}")
             obs, info = env.reset()
             
-    logger.info(f"Average Reward (Mini): {total_rewards/num_eval_games:.2f}")
+    logger.info(f"Average Reward (Full): {total_rewards/num_eval_games:.2f}")
 
 if __name__ == "__main__":
     train()
