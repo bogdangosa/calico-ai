@@ -80,9 +80,15 @@ class BaselineQLearningAgent(AgentBase):
             action_mapping[idx] = action
 
         masked_q_values = q_values + mask
-        best_idx = torch.argmax(masked_q_values).item()
+        
+        # Check for NaNs or all -inf to prevent crash
+        if torch.isnan(masked_q_values).any() or torch.all(torch.isinf(masked_q_values)):
+            return random.choice(legal_actions)
 
-        return action_mapping[best_idx]
+        best_idx = torch.argmax(masked_q_values).item()
+        
+        # Fallback if argmax still returns something invalid
+        return action_mapping.get(best_idx, random.choice(legal_actions))
 
     def get_state_tensors(self, env):
         # Board tensor
