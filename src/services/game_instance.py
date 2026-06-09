@@ -86,7 +86,7 @@ class GameInstance:
             "shop_tiles": self.env.shop_tiles.tolist() if isinstance(self.env.shop_tiles, np.ndarray) else self.env.shop_tiles,
             "board": self.env.board_matrix.tolist() if isinstance(self.env.board_matrix, np.ndarray) else self.env.board_matrix,
             "is_game_over": self.env.is_game_over(),
-            "score": self.scoring_calculator.get_total_detailed_score(self.env.board_matrix, self.env.cat_tiles)[0],
+            "score": self.scoring_calculator.get_total_detailed_score(self.env.board_matrix, self.env.cat_tiles),
         }
 
     def perform_action(self, action: CalicoAction):
