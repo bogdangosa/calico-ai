@@ -166,6 +166,9 @@ def train():
                     # Mask invalid actions in the next state
                     next_q_values[~b_next_mask] = float('-inf')
                     max_next_q = next_q_values.max(1)[0].unsqueeze(1)
+                    
+                    # Ensure max_next_q is 0 for terminal states to avoid 0 * -inf = NaN
+                    max_next_q[b_done.bool()] = 0.0
                     target_q = b_reward + (1.0 - b_done) * GAMMA * max_next_q
 
                 loss = criterion(current_q, target_q)
