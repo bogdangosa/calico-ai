@@ -13,10 +13,15 @@ class BaselineQLearningAgent(AgentBase):
         super().__init__(config)
         self.encoder = CalicoEncoder(config)
         self.device = torch.device(device)
+
+        inner_size = config.board.size - 2
+        self.action_space_size = config.player_hand_size * (inner_size ** 2) + config.nr_of_tiles_in_shop
+
         self.model = BaselineQNetwork(
             input_channels=self.encoder.total_feature_layers,
             board_size=config.board.size,
-            flat_features_size=self.encoder.flat_features_size
+            flat_features_size=self.encoder.flat_features_size,
+            action_space_size=self.action_space_size
         ).to(self.device)
 
         if model_path:

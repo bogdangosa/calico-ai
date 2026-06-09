@@ -8,8 +8,8 @@ from src.engine.environments.calico_env import CalicoEnv
 from src.utils.config import load_config
 from loguru import logger
 
-config_path = "../../config/micro_calico_settings_v2.json"
-model_path = "../../agent_models/micro_calico_v2/baseline_q_learning_agent_v3.0.pth"
+config_path = "../../config/calico_settings.json"
+model_path = "../../agent_models/full_calico/baseline_q_learning_agent_v1.0.pth"
 
 config = load_config(config_path)
 env = CalicoEnv(config)
@@ -22,7 +22,7 @@ agent = BaselineQLearningAgent(config, model_path=model_path, epsilon=0.0, devic
 run_simulation(
     env=env,
     agent=agent,
-    num_games=2000,
+    num_games=100,
     progress_interval=10,
     save_to_dataset=False
 )

@@ -9,7 +9,7 @@ from loguru import logger
 
 # Paths relative to the project root
 config_path = "../../config/micro_calico_settings_v2.json"
-v_table_path = "../../agent_models/micro_calico_v2/tabular_v_table_v2.0.pkl"
+v_table_path = "../../agent_models/micro_calico_v2/tabular_v_table_v1.0_episode_500000.pkl"
 
 def run_evaluation():
     config = load_config(config_path)
@@ -38,7 +38,7 @@ def run_evaluation():
         agent=agent,
         num_games=1000,
         progress_interval=10,
-        save_to_dataset=False
+        save_to_dataset=True
     )
 
 if __name__ == "__main__":
