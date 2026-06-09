@@ -65,5 +65,7 @@ class GameRepository:
         await self.session.execute(delete(GameInstanceORM))
 
     async def list_all(self) -> List[GameInstanceORM]:
-        result = await self.session.execute(select(GameInstanceORM))
+        result = await self.session.execute(
+            select(GameInstanceORM).order_by(GameInstanceORM.created_at.desc())
+        )
         return list(result.scalars().all())

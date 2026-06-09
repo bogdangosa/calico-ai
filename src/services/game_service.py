@@ -83,7 +83,8 @@ class GameService:
                 game_code=g.game_code,
                 config_type=g.config_type,
                 nr_of_players=g.nr_of_players,
-                is_game_over=g.state.get("env_state", {}).get("is_game_over", False)
+                is_game_over=g.state.get("env_state", {}).get("is_game_over", False),
+                created_at=g.created_at
             )
             for g in game_orms
         ]
