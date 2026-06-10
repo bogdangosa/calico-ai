@@ -56,6 +56,8 @@ class GameService:
             bot_types=bot_types,
             state=state
         )
+
+        print(f"Game started with bots {bot_types}")
         return StartGameResponse(game_id=game_id, game_code=game_code)
 
     async def add_player_to_game(self, game_code: str, player_data: PlayerCreate) -> PlayerResponse:
@@ -137,15 +139,18 @@ class GameService:
             
         settings = load_config(self.config_paths.get(game_orm.config_type.lower()))
         game_instance = GameInstance.from_state(game_orm.state, settings)
-        self._initialize_game_agents(game_instance)
+        print(game_orm.bot_types)
 
-        if hasattr(game_instance, 'player_agents_list') and game_instance.player_agents_list:
-            agent = game_instance.player_agents_list[0]
-            action = game_instance.perform_ai_action(agent)
-            await self.repository.update_state(game_orm.id, game_instance.get_full_state())
-            return action
+        if game_orm.bot_types:
+            agent_type = game_orm.bot_types[0]
+            print(f"Model instantiated for {game_code} is {agent_type}")
         else:
             raise ValueError("No AI agents configured for this game.")
+        ai_agent = AgentFactory.create_agent(agent_type=agent_type,game_config=settings)
+
+        action = ai_agent.select_action(game_instance.env)
+        print(action)
+        await self.perform_action(game_code, action)
 
     async def _load_game_by_code(self, game_code: str) -> GameInstance:
         game_orm = await self.repository.get_by_code(game_code)

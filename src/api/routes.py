@@ -115,12 +115,14 @@ async def perform_ai_agent_action(
     service: GameService = Depends(get_game_service)
 ):
     try:
-        action = await service.perform_ai_agent_action_for_player(game_code,"one_step_lookahead")
+        action = await service.perform_ai_agent_action(game_code)
         await manager.broadcast(game_code, {"event": "state_updated"})
         return {"status": "success", "action": action.dict() if action else None}
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))

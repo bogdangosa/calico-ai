@@ -19,21 +19,21 @@ class AgentFactory:
     """
 
     AGENT_MAP: Dict[str, Type[AgentBase]] = {
-        "random": RandomAgent,
-        "one_step_lookahead": OneStepLookaheadAgent,
-        "multi_step_lookahead": MultiStepLookaheadAgent,
-        "topk_lookahead": TopKLookaheadAgent,
+        "Random Agent": RandomAgent,
+        "OneStepLookahead Agent": OneStepLookaheadAgent,
+        "MultiStepLookahead Agent": MultiStepLookaheadAgent,
+        "TopKLookahead Agent": TopKLookaheadAgent,
         "mcts": MonteCarloTreeSearchAgent,
         "q_learning": QLearningAgent,
         "tabular_td": TabularTDAgent,
         "tabular_q_learning": TabularQLearningAgent,
-        "baseline_q_learning": BaselineQLearningAgent,
-        "sb3": SB3Agent
+        "QLearning Agent": BaselineQLearningAgent,
+        "SB3 Agent": SB3Agent
     }
 
     DEFAULT_CONFIGS = {
         "micro_calico": {
-            "multi_step_lookahead": {"depth": 2},
+            "MultiStepLookahead Agent": {"depth": 2},
             "topk_lookahead": {"depth": 3, "k_factor": 5},
             "mcts": {"max_iterations": 500, "exp_c": 1.41},
             "q_learning": {"epsilon": 0.05},
@@ -42,7 +42,7 @@ class AgentFactory:
             "baseline_q_learning": {"epsilon": 0.05}
         },
         "mini_calico": {
-            "multi_step_lookahead": {"depth": 1},
+            "MultiStepLookahead Agent": {"depth": 1},
             "topk_lookahead": {"depth": 2, "k_factor": 5},
             "mcts": {"max_iterations": 1000, "exp_c": 1.41},
             "q_learning": {"epsilon": 0.05},
@@ -51,13 +51,14 @@ class AgentFactory:
             "baseline_q_learning": {"epsilon": 0.05}
         },
         "main_calico": {
-            "multi_step_lookahead": {"depth": 1},
+            "MultiStepLookahead Agent": {"depth": 3},
+            "SB3 Agent": {"model_path":"agent_models/full_calico/old_sb3_calico_ppo_60mil_v1.2.zip"},
             "topk_lookahead": {"depth": 2, "k_factor": 3},
             "mcts": {"max_iterations": 2000, "exp_c": 1.41},
             "q_learning": {"epsilon": 0.05},
             "tabular_td": {"learning_rate": 0.05, "discount_factor": 0.99, "epsilon": 0.1},
             "tabular_q_learning": {"learning_rate": 0.05, "discount_factor": 0.99, "epsilon": 0.1},
-            "baseline_q_learning": {"epsilon": 0.05}
+            "QLearning Agent": {"epsilon": 0,"model_path":"agent_models/full_calico/baseline_q_learning_agent_v1.0.pth"}
         }
     }
 
