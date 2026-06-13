@@ -49,22 +49,6 @@ Calico is a puzzle-y tile-laying game where players compete to sew the coziest q
 └── tests/              # Project test suite
 ```
 
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/calico-ai.git
-   cd calico-ai
-   ```
-
-2. Create a virtual environment and install dependencies:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-   *(Note: Ensure you have `numpy`, `pydantic`, `fastapi`, and `uvicorn` installed.)*
-
 ## Usage
 
 ### Console Game
@@ -85,6 +69,20 @@ Start the API server to get AI moves via HTTP:
 ```bash
 uvicorn main:app --reload
 ```
+
+## Running Tests
+
+To verify the game engine, scoring, and agents, you can run the unit test suite:
+
+1. Install test dependencies:
+   ```bash
+   pip install pytest pytest-asyncio aiosqlite httpx
+   ```
+
+2. Execute tests using `pytest`:
+   ```bash
+   pytest tests/
+   ```
 
 ## AI Agents Detail
 

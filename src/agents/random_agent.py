@@ -1,11 +1,12 @@
 import random
 
+from src.agents.agent_base import AgentBase
 from src.engine.environments.calico_env import CalicoEnv
 
 
-class RandomAgent:
+class RandomAgent(AgentBase):
     def __init__(self, config):
-        self.config = config
+        super().__init__(config)
 
     def get_hyperparameters(self):
         return {}

@@ -6,7 +6,7 @@ import numpy as np
 from src.engine.environments.history_manager import HistoryManager
 from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_config import GameSettings
-from src.models.game_models import CalicoAction, ActionType
+from src.models.game_models import CalicoAction, ActionType, BoardColors
 
 
 class CalicoEnv:
@@ -79,13 +79,13 @@ class CalicoEnv:
         else:
             raise RuntimeError("History manager not initialized!")
 
-    def start_game(self,seed=41):
+    def start_game(self,shuffle_cat_tiles=False,board_color=BoardColors.PURPLE,seed=66):
         self.tile_pool = self.initiate_tile_pool()
         self.player_tiles = [self.generate_random_tile() for _ in range(self.config.player_hand_size)]
         self.shop_tiles = self.initiate_shop_tiles()
-        self.cat_tiles = self.initialize_cat_tiles()
+        self.cat_tiles = self.initialize_cat_tiles(shuffle_cat_tiles)
         self.board_matrix = self.initialize_inner_board()
-        self.initialize_outer_board("purple")
+        self.initialize_outer_board(board_color)
         self.mode = ActionType.PLACE
         self.selected_player_tile_index = 0
 
@@ -128,13 +128,13 @@ class CalicoEnv:
     def initiate_player_tiles(self):
         return [self.generate_random_tile() for _ in range(self.config.player_hand_size)]
 
-    def initialize_cat_tiles(self):
-        cat_tiles = np.arange(1, self.config.tiles.cat_types + 1)
-        np.random.shuffle(cat_tiles)  # shuffles in place
+    def initialize_cat_tiles(self,shuffle_tiles=False):
+        cat_tiles = np.arange(0, self.config.tiles.cat_types)
+        if shuffle_tiles:
+            np.random.shuffle(cat_tiles)  # shuffles in place
         return cat_tiles
 
     def generate_random_tile(self):
-        """Randomly pick a tile ID from pool."""
         valid_indices = np.where(self.tile_pool > 0)[0]
         if len(valid_indices) == 0:
             return None
@@ -150,11 +150,6 @@ class CalicoEnv:
                 self.board_matrix[i+1][j+1] = self.generate_random_tile()
 
     def initialize_inner_board(self):
-        """
-        Creates a 5x5 playable board:
-          - all cells initialized to self.config.board.no_tile_value
-          - objectives placed at specified coordinates (negative IDs)
-        """
         board_matrix = np.full((self.size, self.size), self.config.board.no_tile_value, dtype=int)
 
         for i, (row, col) in enumerate(self.config.board.objective_positions, start=1):
@@ -163,10 +158,6 @@ class CalicoEnv:
         return board_matrix
 
     def initialize_outer_board(self, board_color: str):
-        """
-        Populates the board perimeter with pre-defined border tiles.
-        Uses a clockwise traversal: Top -> Right -> Bottom -> Left.
-        """
         border_tiles = self.config.board.borders.get(board_color)
         if not border_tiles:
             raise ValueError(f"Border color '{board_color}' not found in configuration.")
@@ -193,67 +184,6 @@ class CalicoEnv:
                 f"Border tile sequence for '{board_color}' is shorter than "
                 f"the required {4 * self.size - 4} tiles for a {self.size}x{self.size} board."
             )
-
-    def get_flat_state(self):
-        """
-        Flattens all game components into a single 1D array:
-          - tile_pool
-          - player_tiles
-          - shop_tiles
-          - cat_tiles
-          - board_matrix
-        """
-        state_parts = []
-        # Append mode as integer (0 or 1)
-        state_parts.append(np.array([int(self.mode == ActionType.BUY)], dtype=int))
-        # Player tiles
-        state_parts.append(np.array(self.player_tiles, dtype=int))
-        # Shop tiles
-        state_parts.append(np.array(self.shop_tiles, dtype=int))
-        # Cat tiles
-        if isinstance(self.cat_tiles, np.ndarray):
-            state_parts.append(self.cat_tiles.flatten())
-        else:
-            state_parts.append(np.array(self.cat_tiles, dtype=int))
-        # Board matrix
-        if isinstance(self.board_matrix, np.ndarray):
-            state_parts.append(self.board_matrix.flatten())
-        else:
-            state_parts.append(np.array(self.board_matrix, dtype=int).flatten())
-        # Concatenate everything into a single 1D array
-        flat_state = np.concatenate(state_parts).astype(int)
-        return flat_state
-
-    def set_from_flat_state(self, flat_state):
-        """
-        Reconstructs the game state from a flattened 1D array produced by get_flat_state().
-        """
-        idx = 0
-
-        # --- Mode ---
-        self.mode = "buying" if flat_state[idx] == 1 else "placing"
-        idx += 1
-
-        # --- Player tiles ---
-        player_tile_count = len(self.player_tiles)
-        self.player_tiles = flat_state[idx:idx + player_tile_count].tolist()
-        idx += player_tile_count
-
-        # --- Shop tiles ---
-        shop_tile_count = len(self.shop_tiles)
-        self.shop_tiles = flat_state[idx:idx + shop_tile_count].tolist()
-        idx += shop_tile_count
-
-        # --- Cat tiles ---
-        cat_tile_shape = np.shape(self.cat_tiles)
-        cat_tile_count = np.prod(cat_tile_shape)
-        self.cat_tiles = flat_state[idx:idx + cat_tile_count].reshape(cat_tile_shape)
-        idx += cat_tile_count
-
-        # --- Board matrix ---
-        board_shape = np.shape(self.board_matrix)
-        self.size = np.prod(board_shape)
-        self.board_matrix = flat_state[idx:idx + self.size].reshape(board_shape)
 
     def __str__(self):
         s = []

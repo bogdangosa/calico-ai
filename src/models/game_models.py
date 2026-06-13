@@ -4,8 +4,16 @@ from pydantic import BaseModel
 from typing import Optional
 
 class ActionType(str, Enum):
-    PLACE = "place"
-    BUY = "buy"
+    PLACE = "PLACE"
+    BUY = "BUY"
+
+class BoardColors(str, Enum):
+    PURPLE = "purple"
+    BLUE = "blue"
+    YELLOW = "yellow"
+    GREEN = "green"
+
+
 
 class CalicoAction(BaseModel):
     action_type: ActionType

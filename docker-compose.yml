@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:17.9
+    container_name: calico-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: calico123
+      POSTGRES_DB: calico
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d calico"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: calico-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./agent_models:/app/agent_models
+      - ./config:/app/config
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DYNACONF_APP_PROFILE: dev
+      DYNACONF_DATABASE__URL: "postgresql+asyncpg://postgres:calico123@db:5432/calico"
+      PGPASSWORD: calico123
+    command: >
+      sh -c "sleep 5 &&
+             alembic -c alembic.ini upgrade head &&
+             uvicorn src.main:app --host 0.0.0.0 --port 8000"
+
+  dbgate:
+    image: dbgate/dbgate:5.2.5
+    container_name: calico-dbgate
+    restart: unless-stopped
+    environment:
+      - CONNECTIONS_0_LABEL=CalicoDB
+      - CONNECTIONS_0_ENGINE=postgres@dbgate-plugin-postgres
+      - CONNECTIONS_0_SERVER=db
+      - CONNECTIONS_0_PORT=5432
+      - CONNECTIONS_0_USER=postgres
+      - CONNECTIONS_0_PASSWORD=calico123
+      - CONNECTIONS_0_DATABASE=calico
+    ports:
+      - "5050:3000"
+    volumes:
+      - dbgate_data:/root/.dbgate
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:alpine
+    container_name: calico-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: calico-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+volumes:
+  postgres_data:
+  dbgate_data:

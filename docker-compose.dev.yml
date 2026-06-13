@@ -1,0 +1,89 @@
+services:
+  db:
+    image: postgres:17.9
+    container_name: calico-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: calico123
+      POSTGRES_DB: calico
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d calico"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: calico-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./agent_models:/app/agent_models
+      - ./config:/app/config
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DYNACONF_APP_PROFILE: dev
+      DYNACONF_DATABASE__URL: "postgresql+asyncpg://postgres:calico123@db:5432/calico"
+      PGPASSWORD: calico123
+    command: >
+      sh -c "sleep 5 &&
+             alembic -c alembic.ini upgrade head &&
+             uvicorn src.main:app --host 0.0.0.0 --port 8000"
+
+  training:
+    build: .
+    container_name: calico-training
+    volumes:
+      - ./agent_models:/app/agent_models
+      - ./outputs:/app/outputs
+      - ./config:/app/config
+      - ./src:/app/src
+    environment:
+      PYTHONPATH: /app
+    command: python src/training/train_sb3_masked.py
+    # Prevent the container from restarting automatically when training finishes
+    restart: "no"
+
+  tensorboard:
+    build: .
+    container_name: calico-tensorboard
+    volumes:
+      - ./outputs:/app/outputs
+    command: tensorboard --logdir=/app/outputs/logs --host=0.0.0.0 --port=6006
+    ports:
+      - "7444:6006"
+    environment:
+      DYNACONF_APP_PROFILE: dev
+
+  dbgate:
+    image: dbgate/dbgate:5.2.5
+    container_name: calico-dbgate
+    restart: unless-stopped
+    environment:
+      - CONNECTIONS_0_LABEL=CalicoDB
+      - CONNECTIONS_0_ENGINE=postgres@dbgate-plugin-postgres
+      - CONNECTIONS_0_SERVER=db
+      - CONNECTIONS_0_PORT=5432
+      - CONNECTIONS_0_USER=postgres
+      - CONNECTIONS_0_PASSWORD=calico123
+      - CONNECTIONS_0_DATABASE=calico
+    ports:
+      - "5050:3000"
+    volumes:
+      - dbgate_data:/root/.dbgate
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  dbgate_data:

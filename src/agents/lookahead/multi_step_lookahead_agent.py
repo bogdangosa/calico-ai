@@ -1,12 +1,13 @@
 import random
 
+from src.agents.agent_base import AgentBase
 from src.engine.environments.calico_env import CalicoEnv
 from src.engine.scoring.scoring import ScoringCalculator
-from src.models.game_models import CalicoAction
 
 
-class MultiStepLookaheadAgent:
+class MultiStepLookaheadAgent(AgentBase):
     def __init__(self, scorer: ScoringCalculator, config, depth=1):
+        super().__init__(config)
         self.config = config
         self.depth = depth
         self.scorer = scorer

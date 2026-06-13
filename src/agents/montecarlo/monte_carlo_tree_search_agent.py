@@ -2,6 +2,7 @@ import copy
 import math
 import random
 
+from src.agents.agent_base import AgentBase
 from src.agents.montecarlo.mcst_node import MCTSNode
 from src.agents.random_agent import RandomAgent
 from src.engine.environments.calico_env import CalicoEnv
@@ -9,9 +10,9 @@ from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_models import CalicoAction
 
 
-class MonteCarloTreeSearchAgent:
+class MonteCarloTreeSearchAgent(AgentBase):
     def __init__(self, scorer: ScoringCalculator, config,exp_c=1.41,max_iterations=1000):
-        self.config = config
+        super().__init__(config)
         self.exp_c = exp_c
         self.max_iterations = max_iterations
         self.scorer = scorer
