@@ -7,6 +7,14 @@ class ActionType(str, Enum):
     PLACE = "PLACE"
     BUY = "BUY"
 
+class BoardColors(str, Enum):
+    PURPLE = "purple"
+    BLUE = "blue"
+    YELLOW = "yellow"
+    GREEN = "green"
+
+
+
 class CalicoAction(BaseModel):
     action_type: ActionType
     tile_index: int

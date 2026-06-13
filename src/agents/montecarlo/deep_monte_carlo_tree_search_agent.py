@@ -14,13 +14,15 @@ from src.agents.agent_base import AgentBase
 from src.engine.scoring.scoring import ScoringCalculator
 
 class DeepMCTSAgent(AgentBase):
-    def __init__(self, config, network: nn.Module, encoder: CalicoEncoder, mapper: ActionMapper, num_simulations: int = 100, c_puct: float = 1.0):
+    def __init__(self, config, network: nn.Module, encoder: CalicoEncoder, mapper: ActionMapper, 
+                 num_simulations: int = 100, c_puct: float = 1.0, score_normalization: float = 100.0):
         super().__init__(config)
         self.network = network
         self.encoder = encoder
         self.mapper = mapper
         self.num_simulations = num_simulations
         self.c_puct = c_puct
+        self.score_normalization = score_normalization
         self.network.eval()
 
     def select_action(self, env: CalicoEnv) -> CalicoAction:
@@ -42,7 +44,8 @@ class DeepMCTSAgent(AgentBase):
                 value = self._expand_node(node, env)
             else:
                 scorer = ScoringCalculator(env.config)
-                value = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+                raw_score = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+                value = raw_score / self.score_normalization
 
             self._backpropagate(search_path, node, value)
 
@@ -85,9 +88,18 @@ class DeepMCTSAgent(AgentBase):
         if not legal_actions:
             return 0.0
 
-        state_tensor = self.encoder.encode(env)
+        state_tensor = self.encoder.encode(env) # (size, size, channels)
+        state_tensor = np.transpose(state_tensor, (2, 0, 1)) # (channels, size, size)
+        state_tensor = torch.from_numpy(state_tensor).unsqueeze(0).to(next(self.network.parameters()).device)
+        
+        flat_features = self.encoder.get_flat_features(env)
+        flat_features_tensor = torch.from_numpy(flat_features).unsqueeze(0).to(next(self.network.parameters()).device)
+        
         with torch.no_grad():
-            policy_probs, value = self.network(state_tensor)
+            if hasattr(self.network, 'flat_features_size') and self.network.flat_features_size > 0:
+                policy_probs, value = self.network(state_tensor, flat_features_tensor)
+            else:
+                policy_probs, value = self.network(state_tensor)
 
         policy_probs = policy_probs.squeeze(0).cpu().numpy()
         value = value.item()
@@ -118,7 +130,7 @@ class SelfPlayRunner:
         self.env_config = env_config
         self.agent = agent
 
-    def play_game(self) -> List[Tuple[np.ndarray, np.ndarray, float]]:
+    def play_game(self) -> List[Tuple[np.ndarray, np.ndarray, np.ndarray, float]]:
         env = CalicoEnv(self.env_config)
         env.start_game()
         
@@ -144,7 +156,8 @@ class SelfPlayRunner:
                     value = self.agent._expand_node(node, env)
                 else:
                     scorer = ScoringCalculator(env.config)
-                    value = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+                    raw_score = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+                    value = raw_score / self.agent.score_normalization
 
                 self.agent._backpropagate(search_path, node, value)
 
@@ -162,17 +175,21 @@ class SelfPlayRunner:
             best_action_index = int(np.argmax(visit_counts))
             best_action = self.agent.mapper.index_to_action(best_action_index)
             
-            state_data = self.agent.encoder.encode(env).squeeze(0).cpu().numpy()
-            trajectory.append((state_data, visit_probs))
+            state_data = self.agent.encoder.encode(env) # (size, size, channels)
+            state_data = np.transpose(state_data, (2, 0, 1)) # (channels, size, size)
+            flat_features = self.agent.encoder.get_flat_features(env)
+            
+            trajectory.append((state_data, flat_features, visit_probs))
             
             env.perform_action(best_action)
 
         scorer = ScoringCalculator(env.config)
-        final_score = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+        final_raw_score = scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+        final_normalized_score = final_raw_score / self.agent.score_normalization
         
         result_data = []
-        for state, probs in trajectory:
-            result_data.append((state, probs, final_score))
+        for state, flat_features, probs in trajectory:
+            result_data.append((state, flat_features, probs, final_normalized_score))
             
         return result_data
 
@@ -182,11 +199,15 @@ class MCTSTrainer:
         self.network = network
         self.optimizer = optim.Adam(self.network.parameters(), lr=lr, weight_decay=weight_decay)
 
-    def train_step(self, states: torch.Tensor, target_probs: torch.Tensor, target_values: torch.Tensor) -> float:
+    def train_step(self, states: torch.Tensor, flat_features: torch.Tensor, target_probs: torch.Tensor, target_values: torch.Tensor) -> Tuple[float, float, float]:
         self.network.train()
         self.optimizer.zero_grad()
         
-        pred_probs, pred_values = self.network(states)
+        if hasattr(self.network, 'flat_features_size') and self.network.flat_features_size > 0:
+            pred_probs, pred_values = self.network(states, flat_features)
+        else:
+            pred_probs, pred_values = self.network(states)
+            
         pred_values = pred_values.squeeze(-1)
         
         value_loss = F.mse_loss(pred_values, target_values)
@@ -196,4 +217,4 @@ class MCTSTrainer:
         total_loss.backward()
         self.optimizer.step()
         
-        return total_loss.item()
+        return total_loss.item(), policy_loss.item(), value_loss.item()

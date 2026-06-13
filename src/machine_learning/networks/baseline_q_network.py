@@ -33,6 +33,10 @@ class BaselineQNetwork(nn.Module):
     def save(self, path: str):
         torch.save(self.state_dict(), path)
 
-    def load(self, path: str):
-        self.load_state_dict(torch.load(path))
+    def load(self, path: str, device: torch.device = None):
+        if device is None:
+            # Fallback to current device or CPU
+            device = next(self.parameters()).device if list(self.parameters()) else torch.device('cpu')
+        
+        self.load_state_dict(torch.load(path, map_location=device))
         self.eval()

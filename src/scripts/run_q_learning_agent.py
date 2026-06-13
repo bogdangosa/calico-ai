@@ -9,7 +9,7 @@ from src.utils.config import load_config
 from loguru import logger
 
 config_path = "../../config/calico_settings.json"
-model_path = "../../agent_models/full_calico/baseline_q_learning_agent_v1.0.pth"
+model_path = "../../agent_models/full_calico/baseline_q_terminal_anchoring_v1.3.pth"
 
 config = load_config(config_path)
 env = CalicoEnv(config)
@@ -24,5 +24,5 @@ run_simulation(
     agent=agent,
     num_games=100,
     progress_interval=10,
-    save_to_dataset=False
+    save_to_dataset=True
 )

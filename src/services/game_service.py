@@ -1,26 +1,32 @@
 import uuid
 import random
 import string
-from typing import Dict, List, Optional
+import asyncio
+from typing import Dict, List, Optional, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.agent_factory import AgentFactory
 from src.services.game_instance import GameInstance
-from src.utils.config import load_config
+from src.services.config_service import ConfigService
 from src.engine.scoring.scoring import ScoringCalculator
 from src.agents.random_agent import RandomAgent
 from src.agents.lookahead.one_step_lookahead_agent import OneStepLookaheadAgent
 from src.models.game_models import CalicoAction
-from src.api.models import GameSummary, StartGameResponse, PlayerCreate, PlayerResponse
+from src.api.models import GameSummary, StartGameResponse, PlayerCreate, PlayerResponse, SimulationRequest, SimulationResponse
 from src.repository.game_repository import GameRepository
 from src.repository.player_repository import PlayerRepository
+from src.services.ai_service import AIService
 from src.utils.sanitize import sanitize_for_json
+from src.engine.simulator import run_simulation
+from src.engine.environments.calico_env import CalicoEnv
+import numpy as np
 
 
 class GameService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, ai_service: AIService, config_service: ConfigService):
         self.repository = GameRepository(session)
         self.player_repository = PlayerRepository(session)
+        self.ai_service = ai_service
+        self.config_service = config_service
         self.config_paths = {
             "mini": "config/mini_calico_settings.json",
             "micro": "config/micro_calico_settings.json",
@@ -40,7 +46,7 @@ class GameService:
         if not config_path:
             raise ValueError(f"Invalid configuration type: {configuration_type}")
         
-        settings = load_config(config_path)
+        settings = self.config_service.get_config(config_path)
         game_id = uuid.uuid4()
         game_code = await self._generate_unique_code()
 
@@ -56,6 +62,8 @@ class GameService:
             bot_types=bot_types,
             state=state
         )
+
+        print(f"Game started with bots {bot_types}")
         return StartGameResponse(game_id=game_id, game_code=game_code)
 
     async def add_player_to_game(self, game_code: str, player_data: PlayerCreate) -> PlayerResponse:
@@ -83,7 +91,8 @@ class GameService:
                 game_code=g.game_code,
                 config_type=g.config_type,
                 nr_of_players=g.nr_of_players,
-                is_game_over=g.state.get("env_state", {}).get("is_game_over", False)
+                is_game_over=g.state.get("env_state", {}).get("is_game_over", False),
+                created_at=g.created_at
             )
             for g in game_orms
         ]
@@ -103,7 +112,7 @@ class GameService:
         if not game_orm:
             raise KeyError(f"Game with code {game_code} not found.")
 
-        settings = load_config(self.config_paths.get(game_orm.config_type.lower()))
+        settings = self.config_service.get_config(self.config_paths.get(game_orm.config_type.lower()))
         game_instance = GameInstance.from_state(game_orm.state, settings)
 
         game_instance.perform_action(action)
@@ -120,10 +129,10 @@ class GameService:
         if not game_orm:
             raise KeyError(f"Game with code {game_code} not found.")
 
-        settings = load_config(self.config_paths.get(game_orm.config_type.lower()))
+        settings = self.config_service.get_config(self.config_paths.get(game_orm.config_type.lower()))
         game_instance = GameInstance.from_state(game_orm.state, settings)
 
-        ai_agent = AgentFactory.create_agent(agent_type=agent_type,game_config=settings)
+        ai_agent = await self.ai_service.get_agent(agent_type=agent_type, settings=settings)
         action = ai_agent.select_action(game_instance.env)
         print(action)
         await self.perform_action(game_code, action)
@@ -134,17 +143,21 @@ class GameService:
         if not game_orm:
             raise KeyError(f"Game with code {game_code} not found.")
             
-        settings = load_config(self.config_paths.get(game_orm.config_type.lower()))
+        settings = self.config_service.get_config(self.config_paths.get(game_orm.config_type.lower()))
         game_instance = GameInstance.from_state(game_orm.state, settings)
-        self._initialize_game_agents(game_instance)
+        print(game_orm.bot_types)
 
-        if hasattr(game_instance, 'player_agents_list') and game_instance.player_agents_list:
-            agent = game_instance.player_agents_list[0]
-            action = game_instance.perform_ai_action(agent)
-            await self.repository.update_state(game_orm.id, game_instance.get_full_state())
-            return action
+        if game_orm.bot_types:
+            agent_type = game_orm.bot_types[0]
+            print(f"Model instantiated for {game_code} is {agent_type}")
         else:
             raise ValueError("No AI agents configured for this game.")
+        
+        ai_agent = await self.ai_service.get_agent(agent_type=agent_type, settings=settings)
+
+        action = ai_agent.select_action(game_instance.env)
+        print(action)
+        await self.perform_action(game_code, action)
 
     async def _load_game_by_code(self, game_code: str) -> GameInstance:
         game_orm = await self.repository.get_by_code(game_code)
@@ -152,9 +165,39 @@ class GameService:
             raise KeyError(f"Game with code {game_code} not found.")
         
         config_path = self.config_paths.get(game_orm.config_type.lower())
-        settings = load_config(config_path)
+        settings = self.config_service.get_config(config_path)
         
         return GameInstance.from_state(game_orm.state, settings)
+
+    async def run_simulation_service(self, request: SimulationRequest) -> SimulationResponse:
+        config_path = self.config_paths.get(request.configuration_type.lower())
+        if not config_path:
+            raise ValueError(f"Invalid configuration type: {request.configuration_type}")
+        
+        settings = self.config_service.get_config(config_path)
+        env = CalicoEnv(settings)
+        agent = await self.ai_service.get_agent(agent_type=request.agent_type, settings=settings)
+        
+        # run_simulation is synchronous and CPU bound, so we run it in a thread
+        loop = asyncio.get_event_loop()
+        scores = await loop.run_in_executor(None, run_simulation, env, agent, request.num_games, 100, False, False)
+        
+        return SimulationResponse(
+            average_score=float(np.mean(scores)),
+            max_score=int(np.max(scores)),
+            min_score=int(np.min(scores)),
+            scores=scores
+        )
+
+    async def simulate_game_until_end(self, game_code: str, broadcast_callback: Callable):
+        game_instance = await self._load_game_by_code(game_code)
+        
+        while not game_instance.env.is_game_over():
+            await self.perform_ai_agent_action(game_code)
+            await broadcast_callback()
+            # Reload to check game over status
+            game_instance = await self._load_game_by_code(game_code)
+            await asyncio.sleep(0.1)
 
     def _initialize_game_agents(self, game: GameInstance):
         """Initializes agents based on bot_types."""

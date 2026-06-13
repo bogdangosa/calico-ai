@@ -20,7 +20,7 @@ class GameRepository:
             state=state
         )
         self.session.add(game)
-        await self.session.flush()
+        await self.session.commit()
         return game
 
     async def get_by_id(self, game_id: UUID) -> Optional[GameInstanceORM]:
@@ -50,6 +50,7 @@ class GameRepository:
             .where(GameInstanceORM.id == game_id)
             .values(state=state)
         )
+        await self.session.commit()
 
     async def delete(self, game_id: UUID) -> None:
         await self.session.execute(
@@ -65,5 +66,7 @@ class GameRepository:
         await self.session.execute(delete(GameInstanceORM))
 
     async def list_all(self) -> List[GameInstanceORM]:
-        result = await self.session.execute(select(GameInstanceORM))
+        result = await self.session.execute(
+            select(GameInstanceORM).order_by(GameInstanceORM.created_at.desc())
+        )
         return list(result.scalars().all())

@@ -9,12 +9,11 @@ from loguru import logger
 from src.engine.environments.calico_gym_wrapper import CalicoGymWrapper
 from src.utils.config import load_config
 
-# Configuration for FULL CALICO (7x7 Board)
-CONFIG_PATH = "../../config/calico_settings.json"
-TOTAL_TIMESTEPS = 20000000  # Another 11 Million steps
-MODEL_SAVE_PATH = "../../agent_models/full_calico/sb3_masked_ppo_v3.1"
-LOAD_MODEL_PATH = "../../agent_models/full_calico/sb3_masked_ppo/sb3_calico_ppo_39mil_v1.2.zip"
-LOG_DIR = f"../../outputs/logs/sb3_training_full/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+CONFIG_PATH = "../../config/micro_calico_settings_v2.json"
+TOTAL_TIMESTEPS = 10000000
+MODEL_SAVE_PATH = "../../agent_models/micro_calico_v2/sb3_masked_ppo/sb3_calico_ppo_10mil_v1.0.zip"
+LOAD_MODEL_PATH = None
+LOG_DIR = f"../../outputs/logs/sb3_training_micro/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
 class ActualScoreCallback(BaseCallback):
     def _on_step(self) -> bool:
@@ -38,7 +37,7 @@ def train():
         else:
             # Try absolute path or relative to project root
             # In some execution contexts, paths might differ
-            config = load_config("config/calico_settings.json")
+            config = load_config("config/micro_calico_settings_v2.json")
     else:
         config = load_config(CONFIG_PATH)
         
@@ -46,36 +45,49 @@ def train():
     env = ActionMasker(raw_env, mask_fn)
     
     # 3. Load or Initialize the MaskablePPO model
-    logger.info(f"Loading existing model from {LOAD_MODEL_PATH}...")
-    model = MaskablePPO.load(
-        LOAD_MODEL_PATH, 
-        env=env, 
-        tensorboard_log=LOG_DIR,
-    )
+    if LOAD_MODEL_PATH and os.path.exists(LOAD_MODEL_PATH):
+        logger.info(f"Loading existing model from {LOAD_MODEL_PATH}...")
+        model = MaskablePPO.load(
+            LOAD_MODEL_PATH, 
+            env=env, 
+            tensorboard_log=LOG_DIR,
+        )
+        reset_num_timesteps = False
+    else:
+        logger.info("Initializing new MaskablePPO model from scratch...")
+        model = MaskablePPO(
+            "MultiInputPolicy",
+            env,
+            verbose=1,
+            tensorboard_log=LOG_DIR,
+            gamma=0.99,
+            learning_rate=3e-4,
+        )
+        reset_num_timesteps = True
     
     # 4. Setup callbacks
+    checkpoint_dir = os.path.dirname(MODEL_SAVE_PATH)
+    os.makedirs(checkpoint_dir, exist_ok=True)
     checkpoint_callback = CheckpointCallback(
         save_freq=1000000, # Save every 1M steps
-        save_path=MODEL_SAVE_PATH,
-        name_prefix="sb3_full_calico_ppo_30mil_checkpoint"
+        save_path=checkpoint_dir,
+        name_prefix="sb3_full_calico_ppo_checkpoint"
     )
 
     score_logger = ActualScoreCallback()
 
     # 5. Train the model
-    logger.info(f"Starting SB3 Full Calico training for another {TOTAL_TIMESTEPS} timesteps...")
+    logger.info(f"Starting SB3 Full Calico training for {TOTAL_TIMESTEPS} timesteps...")
     model.learn(
         total_timesteps=TOTAL_TIMESTEPS,
         callback=[checkpoint_callback, score_logger],
         progress_bar=False,
-        reset_num_timesteps=False # Continue from where we left off
+        reset_num_timesteps=reset_num_timesteps
     )
     
     # 6. Save final model
-    os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
-    final_path = os.path.join(MODEL_SAVE_PATH, "30mil")
-    model.save(final_path)
-    logger.info(f"Training complete. Model saved to {final_path}")
+    model.save(MODEL_SAVE_PATH)
+    logger.info(f"Training complete. Model saved to {MODEL_SAVE_PATH}")
     
     # 7. Basic Evaluation
     logger.info("Running evaluation games...")

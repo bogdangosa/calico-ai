@@ -93,14 +93,11 @@ class CalicoMultiplayerEnv:
             self.mode = ActionType.BUY
             
         elif action.action_type == ActionType.BUY:
-            # Transfer tile from shop to player hand
             bought_tile_id = self.shop_tiles[action.tile_index]
             current_player.player_tiles[current_player.selected_player_tile_index] = bought_tile_id
-            
-            # Refill shop
+
             self.shop_tiles[action.tile_index] = self._generate_random_tile()
-            
-            # Advance turn
+
             self._advance_turn()
 
     def _advance_turn(self):
@@ -108,7 +105,6 @@ class CalicoMultiplayerEnv:
         self.mode = ActionType.PLACE
 
     def is_game_over(self) -> bool:
-        # Game is over when all players have full boards
         return all(p.is_board_full() for p in self.players)
 
     def get_state(self) -> Dict:

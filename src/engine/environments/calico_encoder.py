@@ -7,9 +7,7 @@ class CalicoEncoder:
         self.colors = config.tiles.colors
         self.patterns = config.tiles.patterns
         self.total_feature_layers = self.colors + self.patterns + 1
-        
-        # Calculate flat features size
-        # mode (1) + player_hand (hand_size) + shop (shop_size) + cat_tiles (cat_types)
+
         self.flat_features_size = 1 + config.player_hand_size + config.nr_of_tiles_in_shop + config.tiles.cat_types
 
     def get_flat_features(self, env) -> np.ndarray:

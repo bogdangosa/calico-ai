@@ -21,15 +21,11 @@ class SB3Agent(AgentBase):
 
     def select_action(self, env) -> Optional[CalicoAction]:
         if self.model is None:
-            # Fallback to random if no model loaded
             legal_actions = env.get_legal_actions()
             return np.random.choice(legal_actions) if legal_actions else None
 
-        # Synchronize wrapper's internal env state with the provided env
-        # This is slightly inefficient but ensures consistency if we are using the factory
         self.wrapper.env = env
-        
-        # Get observation and mask
+
         action_mask = self.wrapper.action_masks()
         
         obs_dict = {
@@ -37,15 +33,13 @@ class SB3Agent(AgentBase):
             "flat_features": self.wrapper.get_flat_features(),
             "action_mask": action_mask
         }
-        
-        # Predict action index using the model and mask
+
         action_idx, _states = self.model.predict(
             obs_dict, 
             action_masks=action_mask, 
             deterministic=True
         )
-        
-        # Map back to CalicoAction
+
         return self.wrapper._map_index_to_action(int(action_idx))
 
     def load(self, path: str):

@@ -9,10 +9,6 @@ from src.models.game_models import CalicoAction
 from src.engine.scoring.scoring import ScoringCalculator
 
 class TabularTDAgent(AgentBase):
-    """
-    A Temporal Difference (TD) agent that uses a lookup table (V-table) to store state values.
-    It uses a CanonicalTransformer to normalize the state space.
-    """
     def __init__(
         self, 
         config, 
@@ -34,29 +30,21 @@ class TabularTDAgent(AgentBase):
             self.load(v_table_path)
 
     def _get_state_key(self, env) -> tuple:
-        """Transforms the board to canonical form and returns a hashable key."""
         playable_board = self.transformer.get_inner_board(env.board_matrix)
         flat_board = playable_board.flatten()
         sorted_hand = sorted(env.player_tiles)
         return tuple(flat_board) + tuple(sorted_hand)
 
     def get_v_value(self, state_key: tuple) -> float:
-        """Returns the stored value for a state, or 0.0 if unknown."""
         return self.v_table.get(state_key, 0.0)
 
     def get_state_value(self, env, state_key: tuple) -> float:
-        """
-        Returns the exact final score if the game is over.
-        Otherwise, returns the expected future value from the V-table.
-        """
         if env.is_game_over():
-            # Perfect Knowledge Grounding: No table lookup needed.
             return self.scorer.evaluate_move(env.board_matrix, env.cat_tiles)
 
         return self.get_v_value(state_key)
 
     def select_action(self, env) -> Optional[CalicoAction]:
-        """Selects an action using an epsilon-greedy policy."""
         legal_actions = env.get_legal_actions()
         if not legal_actions:
             return None
@@ -67,7 +55,6 @@ class TabularTDAgent(AgentBase):
         return self._get_best_action(env, legal_actions)
 
     def _get_best_action(self, env, legal_actions: list[CalicoAction]) -> CalicoAction:
-        """Evaluates resulting states of all legal actions and picks the best one."""
         best_value = -float('inf')
         best_actions = []
 
@@ -93,7 +80,6 @@ class TabularTDAgent(AgentBase):
         return random.choice(best_actions)
 
     def update(self, state_key: tuple, reward: float, next_state_key: tuple, done: bool):
-        """Standard TD(0) update for state values."""
         current_v = self.get_v_value(state_key)
         
         if done:
@@ -101,18 +87,15 @@ class TabularTDAgent(AgentBase):
         else:
             next_v = self.get_v_value(next_state_key)
             target = reward + self.gamma * next_v
-        
-        # V(s) = V(s) + alpha * [target - V(s)]
+
         new_v = current_v + self.lr * (target - current_v)
         self.v_table[state_key] = new_v
 
     def save(self, path: str):
-        """Saves the V-table to a file using pickle."""
         with open(path, 'wb') as f:
             pickle.dump(self.v_table, f)
 
     def load(self, path: str):
-        """Loads the V-table from a file."""
         try:
             with open(path, 'rb') as f:
                 self.v_table = pickle.load(f)

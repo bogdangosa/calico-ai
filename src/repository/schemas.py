@@ -25,7 +25,6 @@ class GameInstanceORM(Base):
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    # Relationship to players
     players: Mapped[List["PlayerORM"]] = relationship(back_populates="game", cascade="all, delete-orphan")
 
 
@@ -34,11 +33,10 @@ class PlayerORM(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     game_id: Mapped[UUID] = mapped_column(ForeignKey("game_instances.id"))
-    player_type: Mapped[str] = mapped_column(String(20))  # "ai" or "person"
+    player_type: Mapped[str] = mapped_column(String(20))
     order_index: Mapped[int] = mapped_column(Integer)
     player_name: Mapped[str] = mapped_column(String(100))
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Relationship back to game
     game: Mapped["GameInstanceORM"] = relationship(back_populates="players")

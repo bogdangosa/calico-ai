@@ -10,10 +10,7 @@ class OneStepLookaheadAgent(AgentBase):
         self.scorer = scorer
 
     def select_action(self, env: CalicoEnv):
-        """
-        Evaluates all legal actions by simulating them and picking the one
-        that results in the highest immediate score/potential.
-        """
+
         if not env.history_manager:
             env.enable_history()
 
