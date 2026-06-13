@@ -9,7 +9,7 @@ from src.utils.config import load_config
 from loguru import logger
 
 # Paths relative to the project root
-config_path = "../../config/micro_calico_settings_v2.json"
+config_path = "../../config/micro_calico_settings.json"
 v_table_path = "../../agent_models/micro_calico_v2/tabular_q_anchored_v1.2_anchored.pkl"
 
 def run_evaluation():

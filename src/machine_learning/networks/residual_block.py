@@ -16,16 +16,13 @@ class ResidualBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         identity = x
 
-        # First block
         out = self.conv1(x)
         out = self.bn1(out)
         out = F.leaky_relu(out,negative_slope=0.01)
 
-        # Second block
         out = self.conv2(out)
         out = self.bn2(out)
 
-        # Residual connection
         out += identity
         out = F.leaky_relu(out,negative_slope=0.01)
 

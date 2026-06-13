@@ -1,6 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends
-from uuid import UUID
-from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.models import (

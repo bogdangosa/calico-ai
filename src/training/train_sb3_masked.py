@@ -9,7 +9,7 @@ from loguru import logger
 from src.engine.environments.calico_gym_wrapper import CalicoGymWrapper
 from src.utils.config import load_config
 
-CONFIG_PATH = "../../config/micro_calico_settings_v2.json"
+CONFIG_PATH = "../../config/micro_calico_settings.json"
 TOTAL_TIMESTEPS = 10000000
 MODEL_SAVE_PATH = "../../agent_models/micro_calico_v2/sb3_masked_ppo/sb3_calico_ppo_10mil_v1.0.zip"
 LOAD_MODEL_PATH = None
@@ -29,22 +29,18 @@ def mask_fn(env: CalicoGymWrapper) -> bytes:
     return env.action_masks()
 
 def train():
-    # 1. Load configuration and create environment
     if not os.path.exists(CONFIG_PATH):
         alt_path = "../../" + CONFIG_PATH
         if os.path.exists(alt_path):
             config = load_config(alt_path)
         else:
-            # Try absolute path or relative to project root
-            # In some execution contexts, paths might differ
-            config = load_config("config/micro_calico_settings_v2.json")
+            config = load_config("config/micro_calico_settings.json")
     else:
         config = load_config(CONFIG_PATH)
         
     raw_env = CalicoGymWrapper(config)
     env = ActionMasker(raw_env, mask_fn)
-    
-    # 3. Load or Initialize the MaskablePPO model
+
     if LOAD_MODEL_PATH and os.path.exists(LOAD_MODEL_PATH):
         logger.info(f"Loading existing model from {LOAD_MODEL_PATH}...")
         model = MaskablePPO.load(

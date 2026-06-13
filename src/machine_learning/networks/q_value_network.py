@@ -6,7 +6,6 @@ from src.machine_learning.networks.dual_head_res_net import ResidualBlock
 class QValueNetwork(nn.Module):
     """
     A convolutional neural network that estimates the value (Q-value) of a board state.
-    Designed to work with the CalicoEncoder output.
     """
     def __init__(self, input_channels: int = 13, board_size: int = 7, num_blocks: int = 2, hidden_channels: int = 64):
         super().__init__()

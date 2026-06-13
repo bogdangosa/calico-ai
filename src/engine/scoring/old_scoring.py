@@ -217,6 +217,8 @@ def get_total_score_on_board_detailed(board_matrix, cat_tiles):
     objectives_score = get_objectives_score_on_board(board_matrix)
     total_score = cats_score + color_score + objectives_score
     return total_score,cats_score,color_score,objectives_score
+
+
 PLAYER_HAND_SIZE = 2
 NR_OF_TILES_IN_SHOP = 3
 TILE_TYPES = 36

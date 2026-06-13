@@ -13,11 +13,11 @@ from src.engine.scoring.potential_scoring import PotentialScoringCalculator
 from src.utils.config import load_config
 
 # Hyperparameters
-NUM_EPISODES = 500000
+NUM_EPISODES = 1000000
 EPSILON_START = 1.0
 EPSILON_END = 0.1
 SAVE_FREQ = 10000
-MODEL_VERSION = "v1.1_anchored_potential"
+MODEL_VERSION = "v1.3_anchored"
 MODEL_SAVE_PATH = f"../../agent_models/micro_calico_v2/tabular_q_anchored_{MODEL_VERSION}.pkl"
 CURRENT_TIME = datetime.now().strftime("%Y.%m.%d-%H:%M:%S")
 LOG_DIR = f"../../outputs/logs/tabular_q_anchored_training/{MODEL_VERSION}-{CURRENT_TIME}"
@@ -25,7 +25,7 @@ LOG_DIR = f"../../outputs/logs/tabular_q_anchored_training/{MODEL_VERSION}-{CURR
 EPSILON_DECAY = math.exp(math.log(EPSILON_END / EPSILON_START) / NUM_EPISODES)
 
 def train():
-    config = load_config("../../config/micro_calico_settings_v2.json")
+    config = load_config("../../config/micro_calico_settings.json")
     writer = SummaryWriter(log_dir=LOG_DIR)
     
     env = CalicoEnv(config)
@@ -34,8 +34,8 @@ def train():
 
     agent = TabularQLearningAgentTerminalAnchoring(
         config,
-        learning_rate=0.1,
-        discount_factor=0.95,
+        learning_rate=0.2,
+        discount_factor=1,
         epsilon=EPSILON_START
     )
 
@@ -63,7 +63,7 @@ def train():
                     env.enable_history()
                     env.perform_action(act)
                     
-                    final_score, *_ = potential_scorer.get_total_detailed_score(env.board_matrix, env.cat_tiles)
+                    final_score, *_ = actual_scorer.get_total_detailed_score(env.board_matrix, env.cat_tiles)
                     terminal_reward = final_score - prev_score
                     
                     # DIRECT UPDATE to the Q-table for ALL terminal actions (Perfect Grounding)
@@ -91,7 +91,7 @@ def train():
             next_legal_actions = env.get_legal_actions()
             done = env.is_game_over()
 
-            current_score = potential_scorer.evaluate_move(env.board_matrix, env.cat_tiles)
+            current_score = actual_scorer.evaluate_move(env.board_matrix, env.cat_tiles)
             reward = current_score - prev_score
             
             agent.update(state_key, action_key, reward, env, next_state_key, next_legal_actions, done)

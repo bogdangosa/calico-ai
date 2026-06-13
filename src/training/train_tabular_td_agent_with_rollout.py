@@ -24,7 +24,7 @@ EPSILON_DECAY = math.exp(math.log(EPSILON_END / EPSILON_START) / NUM_EPISODES)
 
 
 def train():
-    config = load_config("../../config/micro_calico_settings_v2.json")
+    config = load_config("../../config/micro_calico_settings.json")
     writer = SummaryWriter(log_dir=LOG_DIR)
     
     env = CalicoEnv(config)
