@@ -71,8 +71,7 @@ class BaselineQLearningAgent(AgentBase):
         """
         Encodes the environment state into a PyTorch tensor ready for the network.
         """
-        encoded = self.encoder.encode(env) # (size, size, channels)
-        # Transpose to (channels, size, size) for PyTorch
+        encoded = self.encoder.encode(env)
         encoded = np.transpose(encoded, (2, 0, 1))
         tensor = torch.from_numpy(encoded).unsqueeze(0).to(self.device)
         return tensor

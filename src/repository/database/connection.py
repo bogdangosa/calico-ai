@@ -2,12 +2,10 @@ import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.utils.settings import settings, fetch_from_env
 
-# Use default values if not provided in settings
 POOL_SIZE = getattr(settings.database, "pool_size", 10)
 WORKER_COUNT = getattr(settings.database, "worker_count", 1)
 POOL_PER_WORKER = getattr(settings.database, "pool_per_worker", 5)
@@ -30,7 +28,6 @@ def _create_engine():
     )
 
 
-# Default engine for FastAPI (long-lived process with stable event loop)
 engine = _create_engine()
 
 AsyncSessionLocal = async_sessionmaker(

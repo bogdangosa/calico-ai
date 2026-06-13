@@ -9,9 +9,6 @@ from src.models.game_models import CalicoAction, ActionType
 from src.engine.scoring.scoring import ScoringCalculator
 
 class TabularQLearningAgentTerminalAnchoring(TabularQLearningAgent):
-    """
-    A Tabular Q-Learning agent with Terminal Anchoring.
-    """
     def __init__(
         self, 
         config, 
@@ -24,16 +21,11 @@ class TabularQLearningAgentTerminalAnchoring(TabularQLearningAgent):
         self.scorer = ScoringCalculator(config)
 
     def _get_state_key(self, env) -> tuple:
-        """Includes hand in the state key for better state differentiation."""
         inner_board = self.transformer.get_inner_board(env.board_matrix)
         hand = tuple(sorted(env.player_tiles))
         return tuple(inner_board.flatten()) + hand
 
     def get_grounded_q_value(self, env, state_key: tuple, action: CalicoAction) -> float:
-        """
-        If the action ends the game, returns the ACTUAL final score.
-        Otherwise, returns the stored Q-value.
-        """
         env.enable_history()
         env.perform_action(action)
         is_done = env.is_game_over()
@@ -48,7 +40,6 @@ class TabularQLearningAgentTerminalAnchoring(TabularQLearningAgent):
         return self.get_q_value(state_key, action_key)
 
     def _get_best_action(self, env, legal_actions: List[CalicoAction], state_key: tuple) -> CalicoAction:
-        """Uses grounded evaluation for terminal moves."""
         best_q = -float('inf')
         best_actions = []
 

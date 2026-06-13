@@ -24,6 +24,8 @@ dependencies = [
     "stable-baselines3>=2.8.0",
     "sb3-contrib>=2.8.0",
     "gymnasium>=1.2.3",
+    "websockets>=11.0",
+    "python-multipart>=0.0.6",
 ]
 
 [tool.hatch.build.targets.wheel]

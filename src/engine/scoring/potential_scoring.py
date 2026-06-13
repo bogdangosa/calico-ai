@@ -1,22 +1,20 @@
 from collections import Counter
 from src.engine.scoring.scoring import ScoringCalculator
+from src.engine.scoring.old_scoring import evaluate_move as old_scorer_evaluate
 
 
 class PotentialScoringCalculator(ScoringCalculator):
     def __init__(self, config):
         super().__init__(config)
         self.weights = config.evaluation
+        print(self.weights)
 
     def evaluate_move(self, board, cat_tiles, tile_pool=None):
         """
         The main entry point for the Lookahead Agent.
         Combines actual scores with heuristic potential.
         """
-        actual_total, actual_color, actual_obj, actual_cat = self.get_total_detailed_score(board, cat_tiles)
-
-        pot_cat = self.get_cat_potential(board, cat_tiles)
-        pot_color = self.get_color_potential(board)
-        pot_obj = self.get_objective_viability(board, tile_pool)
+        actual_total, pot_cat, pot_color, pot_obj = old_scorer_evaluate(board, cat_tiles)
 
         final_heuristic_score = (
                 actual_total * self.weights.weight_final_score +
@@ -24,7 +22,6 @@ class PotentialScoringCalculator(ScoringCalculator):
                 pot_color * self.weights.weight_color_potential +
                 pot_obj * self.weights.weight_objective_viability
         )
-
         return final_heuristic_score
 
     def get_cat_potential(self, board, cat_tiles):

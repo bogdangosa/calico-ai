@@ -96,7 +96,6 @@ class DeepMCTSAgent(AgentBase):
         flat_features_tensor = torch.from_numpy(flat_features).unsqueeze(0).to(next(self.network.parameters()).device)
         
         with torch.no_grad():
-            # Check if network accepts flat features
             if hasattr(self.network, 'flat_features_size') and self.network.flat_features_size > 0:
                 policy_probs, value = self.network(state_tensor, flat_features_tensor)
             else:

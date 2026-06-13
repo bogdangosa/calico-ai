@@ -12,9 +12,6 @@ from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_models import CalicoAction, ActionType
 
 class CalicoGymWrapper(gym.Env):
-    """
-    Gymnasium wrapper for CalicoEnv to make it compatible with Stable-Baselines3.
-    """
     metadata = {"render_modes": ["human"]}
 
     def __init__(self, config):
@@ -23,31 +20,21 @@ class CalicoGymWrapper(gym.Env):
         self.env = CalicoEnv(config)
         self.reward_scorer = PotentialScoringCalculator(config)
         self.actual_scorer = ScoringCalculator(config)
-        
-        # Initialize mapper and encoder
+
         self.mapper = ActionMapper(
             board_size=config.board.size,
             hand_size=config.player_hand_size,
             shop_size=config.nr_of_tiles_in_shop
         )
         self.encoder = CalicoEncoder(config)
-        
-        # Action space: Dynamic based on config
+
         self.action_space = spaces.Discrete(self.mapper.total_actions)
-        
-        # Start game briefly to get flat features size
+
         self.env.start_game()
         
         mode_size = 1
-        hand_size = len(self.env.player_tiles)
-        shop_size = len(self.env.shop_tiles)
-        
-        if isinstance(self.env.cat_tiles, np.ndarray):
-            cat_size = self.env.cat_tiles.size
-        else:
-            cat_size = len(self.env.cat_tiles)
-            
-        flat_features_size = mode_size + hand_size + shop_size + cat_size
+
+        flat_features_size = mode_size + self.config.player_hand_size + self.config.nr_of_tiles_in_shop + self.config.tiles.cat_types
         
         self.observation_space = spaces.Dict({
             "board": spaces.Box(
@@ -85,7 +72,6 @@ class CalicoGymWrapper(gym.Env):
         return np.concatenate([mode, player_tiles, shop_tiles, cat_tiles])
 
     def action_masks(self) -> np.ndarray:
-        """Converts legal actions into a boolean mask."""
         mask = np.zeros(self.mapper.total_actions, dtype=np.int8)
         legal_actions = self.env.get_legal_actions()
         
@@ -102,7 +88,6 @@ class CalicoGymWrapper(gym.Env):
         return self.mapper.index_to_action(action_idx)
 
     def reset(self, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """Resets the environment and returns the initial observation and info."""
         super().reset(seed=seed)
         if seed is not None:
             np.random.seed(seed)
@@ -121,14 +106,11 @@ class CalicoGymWrapper(gym.Env):
         return observation, {}
 
     def step(self, action_idx: int) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
-        """Performs an action and returns (obs, reward, terminated, truncated, info)."""
         action = self._map_index_to_action(action_idx)
-        
-        # Execute action
+
         if action:
             self.env.perform_action(action)
-        
-        # Calculate reward
+
         current_heuristic = self.actual_scorer.evaluate_move(
             self.env.board_matrix, self.env.cat_tiles
         )
@@ -152,5 +134,4 @@ class CalicoGymWrapper(gym.Env):
         return observation, reward, terminated, truncated, info
 
     def render(self):
-        """Simple text-based render."""
         print(self.env)

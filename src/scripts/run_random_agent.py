@@ -3,7 +3,7 @@ from src.engine.environments.calico_env import CalicoEnv
 from src.agents.random_agent import RandomAgent
 from src.utils.config import load_config
 
-config = load_config("../../config/micro_calico_settings_v2.json")
+config = load_config("../../config/calico_settings.json")
 env = CalicoEnv(config)
 agent = RandomAgent(config)
 

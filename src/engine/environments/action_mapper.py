@@ -15,12 +15,10 @@ class ActionMapper:
         if action.action_type == ActionType.PLACE:
             row = action.row if action.row is not None else 0
             col = action.col if action.col is not None else 0
-            
-            # Map outer board coordinates to inner grid
+
             inner_row = row - 1
             inner_col = col - 1
-            
-            # Bounds check
+
             if not (0 <= inner_row < self.inner_size and 0 <= inner_col < self.inner_size):
                 return None
                 

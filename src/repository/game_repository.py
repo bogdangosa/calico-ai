@@ -20,7 +20,7 @@ class GameRepository:
             state=state
         )
         self.session.add(game)
-        await self.session.flush()
+        await self.session.commit()
         return game
 
     async def get_by_id(self, game_id: UUID) -> Optional[GameInstanceORM]:
@@ -50,6 +50,7 @@ class GameRepository:
             .where(GameInstanceORM.id == game_id)
             .values(state=state)
         )
+        await self.session.commit()
 
     async def delete(self, game_id: UUID) -> None:
         await self.session.execute(

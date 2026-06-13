@@ -42,7 +42,6 @@ class GameSummary(BaseModel):
 class GamesListResponse(BaseModel):
     games: List[GameSummary]
 
-# Player Models
 class PlayerBase(BaseModel):
     player_name: str
     player_type: str = Field(..., pattern="^(ai|person)$")
@@ -57,3 +56,14 @@ class PlayerResponse(PlayerBase):
 
     class Config:
         from_attributes = True
+
+class SimulationRequest(BaseModel):
+    agent_type: str
+    num_games: int = Field(100, ge=1)
+    configuration_type: str = Field("full", pattern="^(mini|micro|full)$")
+
+class SimulationResponse(BaseModel):
+    average_score: float
+    max_score: int
+    min_score: int
+    scores: List[int]

@@ -40,31 +40,6 @@ services:
              alembic -c alembic.ini upgrade head &&
              uvicorn src.main:app --host 0.0.0.0 --port 8000"
 
-  training:
-    build: .
-    container_name: calico-training
-    volumes:
-      - ./agent_models:/app/agent_models
-      - ./outputs:/app/outputs
-      - ./config:/app/config
-      - ./src:/app/src
-    environment:
-      PYTHONPATH: /app
-    command: python src/training/train_sb3_masked.py
-    # Prevent the container from restarting automatically when training finishes
-    restart: "no"
-
-  tensorboard:
-    build: .
-    container_name: calico-tensorboard
-    volumes:
-      - ./outputs:/app/outputs
-    command: tensorboard --logdir=/app/outputs/logs --host=0.0.0.0 --port=6006
-    ports:
-      - "7444:6006"
-    environment:
-      DYNACONF_APP_PROFILE: dev
-
   dbgate:
     image: dbgate/dbgate:5.2.5
     container_name: calico-dbgate
@@ -84,6 +59,24 @@ services:
     depends_on:
       - db
 
+  nginx:
+    image: nginx:alpine
+    container_name: calico-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: calico-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
 volumes:
   postgres_data:
   dbgate_data:

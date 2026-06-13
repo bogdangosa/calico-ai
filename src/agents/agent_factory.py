@@ -10,55 +10,36 @@ from src.agents.temporal_difference.tabular_td_agent import TabularTDAgent
 from src.agents.q_learning.tabular_q_learning_agent import TabularQLearningAgent
 from src.agents.q_learning.baseline_q_learning_agent import BaselineQLearningAgent
 from src.agents.q_learning.sb3_agent import SB3Agent
+from src.engine.scoring.potential_scoring import PotentialScoringCalculator
 from src.engine.scoring.scoring import ScoringCalculator
 from src.models.game_config import GameSettings
 
 class AgentFactory:
-    """
-    Factory class to create AI agents based on strings and game configuration.
-    """
 
     AGENT_MAP: Dict[str, Type[AgentBase]] = {
         "Random Agent": RandomAgent,
         "OneStepLookahead Agent": OneStepLookaheadAgent,
         "MultiStepLookahead Agent": MultiStepLookaheadAgent,
         "TopKLookahead Agent": TopKLookaheadAgent,
-        "mcts": MonteCarloTreeSearchAgent,
-        "q_learning": QLearningAgent,
-        "tabular_td": TabularTDAgent,
-        "tabular_q_learning": TabularQLearningAgent,
+        "TabularTD Agent": TabularTDAgent,
+        "TabularQLearning Agent": TabularQLearningAgent,
         "QLearning Agent": BaselineQLearningAgent,
         "SB3 Agent": SB3Agent
     }
 
     DEFAULT_CONFIGS = {
         "micro_calico": {
-            "MultiStepLookahead Agent": {"depth": 2},
-            "topk_lookahead": {"depth": 3, "k_factor": 5},
-            "mcts": {"max_iterations": 500, "exp_c": 1.41},
-            "q_learning": {"epsilon": 0.05},
-            "tabular_td": {"learning_rate": 0.1, "discount_factor": 0.95, "epsilon": 0.1},
-            "tabular_q_learning": {"learning_rate": 0.1, "discount_factor": 0.95, "epsilon": 0.1},
-            "baseline_q_learning": {"epsilon": 0.05}
-        },
-        "mini_calico": {
-            "MultiStepLookahead Agent": {"depth": 1},
-            "topk_lookahead": {"depth": 2, "k_factor": 5},
-            "mcts": {"max_iterations": 1000, "exp_c": 1.41},
-            "q_learning": {"epsilon": 0.05},
-            "tabular_td": {"learning_rate": 0.1, "discount_factor": 0.95, "epsilon": 0.1},
-            "tabular_q_learning": {"learning_rate": 0.1, "discount_factor": 0.95, "epsilon": 0.1},
-            "baseline_q_learning": {"epsilon": 0.05}
+            "MultiStepLookahead Agent": {"depth": 3},
+            "TopKLookahead Agent": {"depth": 3, "k_factor": 5},
+            "TabularTD Agent": {"learning_rate": 0.1, "discount_factor": 0.95, "epsilon": 0},
+            "TabularQLearning Agent": {"learning_rate": 0.1, "discount_factor": 0.95, "epsilon": 0},
+            "QLearning Agent": {"epsilon": 0.05}
         },
         "main_calico": {
             "MultiStepLookahead Agent": {"depth": 3},
-            "SB3 Agent": {"model_path":"agent_models/full_calico/old_sb3_calico_ppo_60mil_v1.2.zip"},
-            "topk_lookahead": {"depth": 2, "k_factor": 3},
-            "mcts": {"max_iterations": 2000, "exp_c": 1.41},
-            "q_learning": {"epsilon": 0.05},
-            "tabular_td": {"learning_rate": 0.05, "discount_factor": 0.99, "epsilon": 0.1},
-            "tabular_q_learning": {"learning_rate": 0.05, "discount_factor": 0.99, "epsilon": 0.1},
-            "QLearning Agent": {"epsilon": 0,"model_path":"agent_models/full_calico/baseline_q_learning_agent_v1.0.pth"}
+            "SB3 Agent": {"model_path":"agent_models/full_calico/sb3_full_calico_ppo_35mil.zip"},
+            "TopKLookahead Agent": {"depth": 2, "k_factor": 3},
+            "QLearning Agent": {"epsilon": 0,"model_path":"agent_models/full_calico/baseline_q_terminal_anchoring_v1.3.pth"}
         }
     }
 
@@ -92,7 +73,7 @@ class AgentFactory:
         agent_params.update(kwargs)
 
         if agent_class in [OneStepLookaheadAgent, MultiStepLookaheadAgent, TopKLookaheadAgent, MonteCarloTreeSearchAgent]:
-            scorer = ScoringCalculator(game_config)
+            scorer = PotentialScoringCalculator(game_config)
             return agent_class(scorer=scorer, config=game_config, **agent_params)
 
         if agent_class in [QLearningAgent, TabularQLearningAgent, BaselineQLearningAgent, SB3Agent]:

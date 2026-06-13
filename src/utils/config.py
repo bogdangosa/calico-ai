@@ -6,6 +6,9 @@ from loguru import logger
 from src.models.game_config import GameSettings
 
 
+from functools import lru_cache
+
+@lru_cache(maxsize=16)
 def load_config(config_path: str) -> GameSettings:
     """
     Reads a JSON file and parses it into a GameSettings object.
